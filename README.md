@@ -1,6 +1,9 @@
-# Postman Agent Skill - POC
+# Postman Agent Skill
 
-A proof-of-concept Agent Skill that enables Claude to interact with the Postman API for API lifecycle management.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+
+A Claude Agent Skill that enables AI-powered interaction with the Postman API for complete API lifecycle management.
 
 ## What is This?
 
@@ -28,7 +31,7 @@ export POSTMAN_WORKSPACE_ID="your-workspace-id"
 ### 3. Test the Skill Locally
 
 ```bash
-# Test configuration
+# Test configuration and discover resources
 python postman-skill/scripts/list_collections.py
 
 # List all resources
@@ -38,6 +41,13 @@ python postman-skill/scripts/list_collections.py --all
 python postman-skill/scripts/list_collections.py --environments
 python postman-skill/scripts/list_collections.py --monitors
 python postman-skill/scripts/list_collections.py --apis
+
+# Run collection tests (requires Newman: npm install -g newman)
+python postman-skill/scripts/run_collection.py --collection="My Collection"
+
+# Manage monitors
+python postman-skill/scripts/manage_monitors.py --list
+python postman-skill/scripts/manage_monitors.py --analyze <monitor-id>
 ```
 
 ### 4. Upload to Claude (Agent Skills API)
@@ -108,25 +118,36 @@ print(response.content)
 ### Workflows
 
 - **list_collections.md**: Step-by-step guide for discovering workspace resources
+- **run_collection.md**: Execute collection tests with Newman and analyze results
+- **manage_monitors.md**: Create, manage, and analyze monitors for continuous API monitoring
 
-### Capabilities (POC)
+### Capabilities
 
-✅ List collections
-✅ List environments
-✅ List monitors
-✅ List APIs
-✅ Get detailed collection info
-✅ Get detailed environment info
-✅ Get detailed monitor info
-✅ Error handling with retry logic
+#### ✅ Discover Phase (Phases 1-4)
+- List collections, environments, monitors, and APIs
+- Get detailed resource information
+- Workspace resource discovery
+- Error handling with retry logic
+
+#### ✅ Test Phase (Phase 5)
+- Run collection tests with Newman integration
+- Execute test suites with environment variables
+- Parse and format test results
+- Detailed pass/fail reporting with assertions
+
+#### ✅ Observe Phase (Phase 6)
+- Create, update, and delete monitors
+- List all monitors with status
+- View monitor run history and analytics
+- Analyze success rates and response times
+- Get detailed run diagnostics
 
 ### Not Yet Implemented
 
-❌ Running collection tests (requires Newman integration)
-❌ Creating/updating resources
-❌ Schema validation
-❌ Monitor analysis
+❌ Creating/updating collections and environments
+❌ Schema validation workflows
 ❌ Documentation publishing
+❌ Advanced monitor scheduling options
 
 ## File Structure
 
@@ -135,15 +156,20 @@ postman-skill/
 ├── SKILL.md                      # Entry point - skill metadata & overview
 ├── README.md                     # This file
 ├── workflows/
-│   └── test/
-│       └── list_collections.md   # Discovery workflow
+│   ├── test/
+│   │   ├── list_collections.md   # Discovery workflow
+│   │   └── run_collection.md     # Test execution workflow
+│   └── observe/
+│       └── manage_monitors.md    # Monitor management workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
-│   ├── postman_client.py         # API client
-│   └── list_collections.py       # Collection discovery script
+│   ├── postman_client.py         # API client with CRUD operations
+│   ├── list_collections.py       # Collection discovery script
+│   ├── run_collection.py         # Newman test execution wrapper
+│   └── manage_monitors.py        # Monitor management CLI
 ├── utils/
 │   ├── retry_handler.py          # Retry logic with backoff
-│   └── formatters.py             # Output formatting
+│   └── formatters.py             # Output formatting (collections, monitors, runs)
 └── examples/
     └── api_responses/            # Sample responses (for future reference)
 ```
@@ -194,6 +220,7 @@ Results formatted and returned to user
 
 - Python 3.7+
 - `requests` library (usually pre-installed)
+- Node.js and Newman (for test execution): `npm install -g newman`
 
 ### Run Tests
 
@@ -201,12 +228,20 @@ Results formatted and returned to user
 # Test configuration validation
 python postman-skill/scripts/config.py
 
-# Test API connection
+# Test API connection and discovery
 python postman-skill/scripts/list_collections.py
 
 # Test with different options
 python postman-skill/scripts/list_collections.py --all
 python postman-skill/scripts/list_collections.py --environments
+
+# Test collection execution
+python postman-skill/scripts/run_collection.py --collection="Your Collection Name"
+
+# Test monitor operations
+python postman-skill/scripts/manage_monitors.py --list
+python postman-skill/scripts/manage_monitors.py --get <monitor-id>
+python postman-skill/scripts/manage_monitors.py --analyze <monitor-id> --limit 10
 ```
 
 ### Expected Output
@@ -275,6 +310,19 @@ This POC follows the design principles from the project plan:
 - ✅ Retry logic with exponential backoff
 - ✅ Configuration validation
 
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### How to Contribute
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes and test them
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
 ## Resources
 
 - [Postman API Documentation](https://www.postman.com/postman/workspace/postman-public-workspace/documentation/12959542-c8142d51-e97c-46b6-bd77-52bb66712c9a)
@@ -283,4 +331,8 @@ This POC follows the design principles from the project plan:
 
 ## License
 
-This is a proof-of-concept demonstration. Customize as needed for your use case.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+Built with [Claude](https://claude.ai) and designed for the [Anthropic Agent Skills](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills) framework.

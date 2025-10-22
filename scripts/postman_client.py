@@ -390,3 +390,199 @@ class PostmanClient:
         endpoint = f"/workspaces/{workspace_id}"
         response = self._make_request('GET', endpoint)
         return response.get('workspace', {})
+
+    # Design Phase: Schema and API Operations
+
+    def get_api(self, api_id):
+        """
+        Get detailed information about a specific API.
+
+        Args:
+            api_id: Unique identifier for the API
+
+        Returns:
+            API object with full details
+        """
+        endpoint = f"/apis/{api_id}"
+        response = self._make_request('GET', endpoint)
+        return response.get('api', {})
+
+    def get_api_versions(self, api_id):
+        """
+        Get all versions of an API.
+
+        Args:
+            api_id: Unique identifier for the API
+
+        Returns:
+            List of API version objects
+        """
+        endpoint = f"/apis/{api_id}/versions"
+        response = self._make_request('GET', endpoint)
+        return response.get('versions', [])
+
+    def get_api_version(self, api_id, version_id):
+        """
+        Get a specific version of an API.
+
+        Args:
+            api_id: Unique identifier for the API
+            version_id: Unique identifier for the version
+
+        Returns:
+            API version object with details
+        """
+        endpoint = f"/apis/{api_id}/versions/{version_id}"
+        response = self._make_request('GET', endpoint)
+        return response.get('version', {})
+
+    def get_api_schema(self, api_id, version_id):
+        """
+        Get the schema for a specific API version.
+
+        Args:
+            api_id: Unique identifier for the API
+            version_id: Unique identifier for the version
+
+        Returns:
+            Schema object
+        """
+        endpoint = f"/apis/{api_id}/versions/{version_id}/schemas"
+        response = self._make_request('GET', endpoint)
+        return response.get('schemas', [])
+
+    def create_api(self, api_data, workspace_id=None):
+        """
+        Create a new API.
+
+        Args:
+            api_data: Dictionary containing API configuration:
+                - name: API name
+                - summary: API summary (optional)
+                - description: API description (optional)
+            workspace_id: Workspace ID (uses config default if not provided)
+
+        Returns:
+            Created API object
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        if workspace_id:
+            endpoint = f"/apis?workspace={workspace_id}"
+        else:
+            endpoint = "/apis"
+
+        response = self._make_request('POST', endpoint, json={'api': api_data})
+        return response.get('api', {})
+
+    def update_api(self, api_id, api_data):
+        """
+        Update an existing API.
+
+        Args:
+            api_id: Unique identifier for the API
+            api_data: Dictionary containing fields to update
+
+        Returns:
+            Updated API object
+        """
+        endpoint = f"/apis/{api_id}"
+        response = self._make_request('PUT', endpoint, json={'api': api_data})
+        return response.get('api', {})
+
+    def delete_api(self, api_id):
+        """
+        Delete an API.
+
+        Args:
+            api_id: Unique identifier for the API
+
+        Returns:
+            Deletion confirmation
+        """
+        endpoint = f"/apis/{api_id}"
+        response = self._make_request('DELETE', endpoint)
+        return response
+
+    # Deploy Phase: Mock Server Operations
+
+    def list_mocks(self, workspace_id=None):
+        """
+        List all mock servers in a workspace.
+
+        Args:
+            workspace_id: Workspace ID (uses config default if not provided)
+
+        Returns:
+            List of mock server objects
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        if workspace_id:
+            endpoint = f"/mocks?workspace={workspace_id}"
+        else:
+            endpoint = "/mocks"
+
+        response = self._make_request('GET', endpoint)
+        return response.get('mocks', [])
+
+    def get_mock(self, mock_id):
+        """
+        Get detailed information about a specific mock server.
+
+        Args:
+            mock_id: Unique identifier for the mock server
+
+        Returns:
+            Mock server object with full details
+        """
+        endpoint = f"/mocks/{mock_id}"
+        response = self._make_request('GET', endpoint)
+        return response.get('mock', {})
+
+    def create_mock(self, mock_data):
+        """
+        Create a new mock server.
+
+        Args:
+            mock_data: Dictionary containing mock server configuration:
+                - name: Mock server name
+                - collection: Collection UID
+                - environment: Environment UID (optional)
+                - private: Boolean, whether mock is private (optional)
+
+        Returns:
+            Created mock server object
+        """
+        endpoint = "/mocks"
+        response = self._make_request('POST', endpoint, json={'mock': mock_data})
+        return response.get('mock', {})
+
+    def update_mock(self, mock_id, mock_data):
+        """
+        Update an existing mock server.
+
+        Args:
+            mock_id: Unique identifier for the mock server
+            mock_data: Dictionary containing fields to update
+
+        Returns:
+            Updated mock server object
+        """
+        endpoint = f"/mocks/{mock_id}"
+        response = self._make_request('PUT', endpoint, json={'mock': mock_data})
+        return response.get('mock', {})
+
+    def delete_mock(self, mock_id):
+        """
+        Delete a mock server.
+
+        Args:
+            mock_id: Unique identifier for the mock server
+
+        Returns:
+            Deletion confirmation
+        """
+        endpoint = f"/mocks/{mock_id}"
+        response = self._make_request('DELETE', endpoint)
+        return response

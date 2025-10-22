@@ -45,6 +45,15 @@ python postman-skill/scripts/list_collections.py --apis
 # Run collection tests (requires Newman: npm install -g newman)
 python postman-skill/scripts/run_collection.py --collection="My Collection"
 
+# Manage collections
+python postman-skill/scripts/manage_collections.py --list
+python postman-skill/scripts/manage_collections.py --create --name="New Collection"
+python postman-skill/scripts/manage_collections.py --duplicate <collection-id> --name="Copy"
+
+# Manage environments
+python postman-skill/scripts/manage_environments.py --list
+python postman-skill/scripts/manage_environments.py --create --name="Development"
+
 # Manage monitors
 python postman-skill/scripts/manage_monitors.py --list
 python postman-skill/scripts/manage_monitors.py --analyze <monitor-id>
@@ -118,6 +127,8 @@ print(response.content)
 ### Workflows
 
 - **list_collections.md**: Step-by-step guide for discovering workspace resources
+- **manage_collections.md**: Create, update, delete, and duplicate collections
+- **manage_environments.md**: Create, update, delete, and duplicate environments
 - **run_collection.md**: Execute collection tests with Newman and analyze results
 - **manage_monitors.md**: Create, manage, and analyze monitors for continuous API monitoring
 
@@ -142,9 +153,16 @@ print(response.content)
 - Analyze success rates and response times
 - Get detailed run diagnostics
 
+#### ✅ Build Phase (Phase 7)
+- Create new collections and environments
+- Update existing collections and environments
+- Delete collections and environments
+- Duplicate collections and environments
+- Add requests to collections
+- Manage environment variables (including secrets)
+
 ### Not Yet Implemented
 
-❌ Creating/updating collections and environments
 ❌ Schema validation workflows
 ❌ Documentation publishing
 ❌ Advanced monitor scheduling options
@@ -159,12 +177,17 @@ postman-skill/
 │   ├── test/
 │   │   ├── list_collections.md   # Discovery workflow
 │   │   └── run_collection.md     # Test execution workflow
+│   ├── build/
+│   │   ├── manage_collections.md # Collection management workflow
+│   │   └── manage_environments.md # Environment management workflow
 │   └── observe/
 │       └── manage_monitors.md    # Monitor management workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
 │   ├── postman_client.py         # API client with CRUD operations
 │   ├── list_collections.py       # Collection discovery script
+│   ├── manage_collections.py     # Collection management CLI
+│   ├── manage_environments.py    # Environment management CLI
 │   ├── run_collection.py         # Newman test execution wrapper
 │   └── manage_monitors.py        # Monitor management CLI
 ├── utils/

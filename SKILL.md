@@ -12,6 +12,7 @@ This skill gives Claude the ability to interact with the Postman API to manage t
 ## Capabilities
 
 - **Discover**: List collections, APIs, environments, and monitors in your workspace
+- **Build**: Create, update, and delete collections and environments
 - **Test**: Run collection test suites with Newman and analyze results
 - **Observe**: Create, manage, and analyze monitors for continuous API monitoring
 - **Validate**: Review API schemas and security configurations (future)
@@ -20,6 +21,8 @@ This skill gives Claude the ability to interact with the Postman API to manage t
 
 Claude should use this skill when you:
 - Mention Postman, collections, or API testing
+- Want to create, update, or delete collections or environments
+- Need to duplicate or organize collections and environments
 - Ask to run tests or check test results
 - Want to see what APIs/collections are available
 - Need to create, manage, or analyze monitors
@@ -49,6 +52,16 @@ Before using this skill, ensure:
 
 List all collections, environments, and monitors in your workspace to understand what resources are available.
 
+### Manage Collections
+**File**: `workflows/build/manage_collections.md`
+
+Create, update, delete, and duplicate Postman collections. Build new test collections, organize existing ones, and manage collection lifecycle programmatically.
+
+### Manage Environments
+**File**: `workflows/build/manage_environments.md`
+
+Create, update, delete, and duplicate Postman environments. Set up environment variables for different stages (dev, staging, production) and manage environment configurations.
+
 ### Run Collection Tests
 **File**: `workflows/test/run_collection.md`
 
@@ -77,12 +90,17 @@ postman-skill/
 │   ├── test/
 │   │   ├── list_collections.md   # Discovery workflow
 │   │   └── run_collection.md     # Test execution workflow
+│   ├── build/
+│   │   ├── manage_collections.md # Collection management workflow
+│   │   └── manage_environments.md # Environment management workflow
 │   └── observe/
 │       └── manage_monitors.md    # Monitor management workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
 │   ├── postman_client.py         # API client with CRUD operations
 │   ├── list_collections.py       # Collection discovery script
+│   ├── manage_collections.py     # Collection management CLI
+│   ├── manage_environments.py    # Environment management CLI
 │   ├── run_collection.py         # Newman test execution wrapper
 │   └── manage_monitors.py        # Monitor management CLI
 └── utils/
@@ -95,6 +113,16 @@ postman-skill/
 **List all collections:**
 ```bash
 python /skills/postman-skill/scripts/list_collections.py
+```
+
+**Create a new collection:**
+```bash
+python /skills/postman-skill/scripts/manage_collections.py --create --name "My API Tests"
+```
+
+**Create an environment:**
+```bash
+python /skills/postman-skill/scripts/manage_environments.py --create --name "Development" --add-var '{"key":"API_URL","value":"https://dev.api.com"}'
 ```
 
 **Run a specific collection:**

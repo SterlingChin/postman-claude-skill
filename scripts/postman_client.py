@@ -95,6 +95,59 @@ class PostmanClient:
         response = self._make_request('GET', endpoint)
         return response.get('collection', {})
 
+    def create_collection(self, collection_data, workspace_id=None):
+        """
+        Create a new collection.
+
+        Args:
+            collection_data: Dictionary containing collection configuration:
+                - info: Collection metadata (name, description, schema)
+                - item: List of requests/folders (optional)
+                - variable: List of collection variables (optional)
+            workspace_id: Workspace ID to create collection in (uses config default if not provided)
+
+        Returns:
+            Created collection object
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        if workspace_id:
+            endpoint = f"/collections?workspace={workspace_id}"
+        else:
+            endpoint = "/collections"
+
+        response = self._make_request('POST', endpoint, json={'collection': collection_data})
+        return response.get('collection', {})
+
+    def update_collection(self, collection_uid, collection_data):
+        """
+        Update an existing collection.
+
+        Args:
+            collection_uid: Unique identifier for the collection
+            collection_data: Dictionary containing fields to update
+
+        Returns:
+            Updated collection object
+        """
+        endpoint = f"/collections/{collection_uid}"
+        response = self._make_request('PUT', endpoint, json={'collection': collection_data})
+        return response.get('collection', {})
+
+    def delete_collection(self, collection_uid):
+        """
+        Delete a collection.
+
+        Args:
+            collection_uid: Unique identifier for the collection
+
+        Returns:
+            Deletion confirmation
+        """
+        endpoint = f"/collections/{collection_uid}"
+        response = self._make_request('DELETE', endpoint)
+        return response
+
     def list_environments(self, workspace_id=None):
         """
         List all environments in a workspace.
@@ -128,6 +181,58 @@ class PostmanClient:
         endpoint = f"/environments/{environment_uid}"
         response = self._make_request('GET', endpoint)
         return response.get('environment', {})
+
+    def create_environment(self, environment_data, workspace_id=None):
+        """
+        Create a new environment.
+
+        Args:
+            environment_data: Dictionary containing environment configuration:
+                - name: Environment name
+                - values: List of environment variables (key, value, type, enabled)
+            workspace_id: Workspace ID to create environment in (uses config default if not provided)
+
+        Returns:
+            Created environment object
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        if workspace_id:
+            endpoint = f"/environments?workspace={workspace_id}"
+        else:
+            endpoint = "/environments"
+
+        response = self._make_request('POST', endpoint, json={'environment': environment_data})
+        return response.get('environment', {})
+
+    def update_environment(self, environment_uid, environment_data):
+        """
+        Update an existing environment.
+
+        Args:
+            environment_uid: Unique identifier for the environment
+            environment_data: Dictionary containing fields to update
+
+        Returns:
+            Updated environment object
+        """
+        endpoint = f"/environments/{environment_uid}"
+        response = self._make_request('PUT', endpoint, json={'environment': environment_data})
+        return response.get('environment', {})
+
+    def delete_environment(self, environment_uid):
+        """
+        Delete an environment.
+
+        Args:
+            environment_uid: Unique identifier for the environment
+
+        Returns:
+            Deletion confirmation
+        """
+        endpoint = f"/environments/{environment_uid}"
+        response = self._make_request('DELETE', endpoint)
+        return response
 
     def run_collection(self, collection_uid, environment_uid=None):
         """

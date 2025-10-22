@@ -12,23 +12,29 @@ This skill gives Claude the ability to interact with the Postman API to manage t
 ## Capabilities
 
 - **Discover**: List collections, APIs, environments, and monitors in your workspace
+- **Design**: Validate API schemas, compare versions, and manage API definitions
 - **Build**: Create, update, and delete collections and environments
 - **Test**: Run collection test suites with Newman and analyze results
+- **Secure**: Check authentication configuration and security settings
+- **Deploy**: Create and manage mock servers for API prototyping
 - **Observe**: Create, manage, and analyze monitors for continuous API monitoring
-- **Validate**: Review API schemas and security configurations (future)
+- **Distribute**: View and assess API documentation quality
 
 ## When to Use This Skill
 
 Claude should use this skill when you:
 - Mention Postman, collections, or API testing
+- Want to validate API schemas or compare versions
 - Want to create, update, or delete collections or environments
 - Need to duplicate or organize collections and environments
+- Ask to check authentication or security configuration
+- Ask to create mock servers for prototyping
 - Ask to run tests or check test results
 - Want to see what APIs/collections are available
 - Need to create, manage, or analyze monitors
 - Ask about API uptime, monitoring, or observability
 - Want to check monitor status or run history
-- Ask about API validation or documentation
+- Ask about API documentation quality or access
 
 ## Prerequisites
 
@@ -52,6 +58,16 @@ Before using this skill, ensure:
 
 List all collections, environments, and monitors in your workspace to understand what resources are available.
 
+### Validate API Schema
+**File**: `workflows/design/validate_schema.md`
+
+Validate API schemas against OpenAPI/Swagger standards. Check schema structure, retrieve API versions, and ensure API definitions are well-formed before deployment.
+
+### Compare API Versions
+**File**: `workflows/design/version_comparison.md`
+
+Compare different versions of an API to identify changes, breaking updates, and migration requirements. Essential for API governance and version management.
+
 ### Manage Collections
 **File**: `workflows/build/manage_collections.md`
 
@@ -67,10 +83,25 @@ Create, update, delete, and duplicate Postman environments. Set up environment v
 
 Execute a collection's test suite using Newman and get formatted results showing passes, failures, and detailed diagnostics. Requires Newman CLI to be installed.
 
+### Check Authentication
+**File**: `workflows/secure/check_auth.md`
+
+Review authentication configuration in collections. Identify auth types, check security settings, and get recommendations for improving API security.
+
+### Manage Mock Servers
+**File**: `workflows/deploy/manage_mocks.md`
+
+Create, update, and manage mock servers for API prototyping and frontend development. Enable testing without backend implementation.
+
 ### Manage Monitors
 **File**: `workflows/observe/manage_monitors.md`
 
 Create, update, delete, and analyze Postman monitors for continuous API monitoring. View monitor run history, success rates, and performance metrics to ensure API reliability.
+
+### View Documentation
+**File**: `workflows/distribute/view_documentation.md`
+
+Access and assess API documentation quality. Check documentation completeness, review endpoint descriptions, and get recommendations for improving docs.
 
 ## Architecture
 
@@ -90,11 +121,20 @@ postman-skill/
 │   ├── test/
 │   │   ├── list_collections.md   # Discovery workflow
 │   │   └── run_collection.md     # Test execution workflow
+│   ├── design/
+│   │   ├── validate_schema.md    # Schema validation workflow
+│   │   └── version_comparison.md # API version comparison workflow
 │   ├── build/
 │   │   ├── manage_collections.md # Collection management workflow
 │   │   └── manage_environments.md # Environment management workflow
-│   └── observe/
-│       └── manage_monitors.md    # Monitor management workflow
+│   ├── secure/
+│   │   └── check_auth.md         # Authentication check workflow
+│   ├── deploy/
+│   │   └── manage_mocks.md       # Mock server management workflow
+│   ├── observe/
+│   │   └── manage_monitors.md    # Monitor management workflow
+│   └── distribute/
+│       └── view_documentation.md # Documentation access workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
 │   ├── postman_client.py         # API client with CRUD operations
@@ -123,6 +163,29 @@ python /skills/postman-skill/scripts/manage_collections.py --create --name "My A
 **Create an environment:**
 ```bash
 python /skills/postman-skill/scripts/manage_environments.py --create --name "Development" --add-var '{"key":"API_URL","value":"https://dev.api.com"}'
+```
+
+**Validate API schema:**
+```python
+# See: workflows/design/validate_schema.md
+from scripts.postman_client import PostmanClient
+client = PostmanClient()
+schemas = client.get_api_schema(api_id="<api-id>", version_id="<version-id>")
+```
+
+**Check authentication configuration:**
+```python
+# See: workflows/secure/check_auth.md
+collection = client.get_collection(collection_uid="<collection-id>")
+auth_type = collection.get('auth', {}).get('type', 'No auth')
+```
+
+**Create a mock server:**
+```python
+# See: workflows/deploy/manage_mocks.md
+mock_data = {"name": "API Mock", "collection": "<collection-uid>"}
+mock = client.create_mock(mock_data)
+print(f"Mock URL: {mock['mockUrl']}")
 ```
 
 **Run a specific collection:**

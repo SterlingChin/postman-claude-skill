@@ -127,10 +127,15 @@ print(response.content)
 ### Workflows
 
 - **list_collections.md**: Step-by-step guide for discovering workspace resources
+- **validate_schema.md**: Validate API schemas against OpenAPI/Swagger standards
+- **version_comparison.md**: Compare API versions and identify changes
 - **manage_collections.md**: Create, update, delete, and duplicate collections
 - **manage_environments.md**: Create, update, delete, and duplicate environments
+- **check_auth.md**: Review authentication configuration and security
+- **manage_mocks.md**: Create and manage mock servers for prototyping
 - **run_collection.md**: Execute collection tests with Newman and analyze results
 - **manage_monitors.md**: Create, manage, and analyze monitors for continuous API monitoring
+- **view_documentation.md**: Access and assess API documentation quality
 
 ### Capabilities
 
@@ -140,18 +145,11 @@ print(response.content)
 - Workspace resource discovery
 - Error handling with retry logic
 
-#### ✅ Test Phase (Phase 5)
-- Run collection tests with Newman integration
-- Execute test suites with environment variables
-- Parse and format test results
-- Detailed pass/fail reporting with assertions
-
-#### ✅ Observe Phase (Phase 6)
-- Create, update, and delete monitors
-- List all monitors with status
-- View monitor run history and analytics
-- Analyze success rates and response times
-- Get detailed run diagnostics
+#### ✅ Design Phase (Phase 5 - Part 1)
+- Validate API schemas (OpenAPI, Swagger, GraphQL)
+- Get API versions and compare changes
+- Manage API definitions and versions
+- Create, update, and delete APIs
 
 #### ✅ Build Phase (Phase 7)
 - Create new collections and environments
@@ -161,11 +159,43 @@ print(response.content)
 - Add requests to collections
 - Manage environment variables (including secrets)
 
+#### ✅ Test Phase (Phase 5 - Original)
+- Run collection tests with Newman integration
+- Execute test suites with environment variables
+- Parse and format test results
+- Detailed pass/fail reporting with assertions
+
+#### ✅ Secure Phase (Phase 5 - Part 2)
+- Check authentication configuration
+- Review security settings in collections
+- Identify unsecured endpoints
+- Get security recommendations
+
+#### ✅ Deploy Phase (Phase 5 - Part 3)
+- Create and manage mock servers
+- List all mocks in workspace
+- Update mock server configuration
+- Delete mock servers
+
+#### ✅ Observe Phase (Phase 6)
+- Create, update, and delete monitors
+- List all monitors with status
+- View monitor run history and analytics
+- Analyze success rates and response times
+- Get detailed run diagnostics
+
+#### ✅ Distribute Phase (Phase 5 - Part 4)
+- View API documentation
+- Assess documentation quality and completeness
+- Check for missing descriptions or examples
+- Get recommendations for improving docs
+
 ### Not Yet Implemented
 
-❌ Schema validation workflows
-❌ Documentation publishing
-❌ Advanced monitor scheduling options
+❌ Advanced schema validation (breaking change detection)
+❌ Documentation publishing (public docs)
+❌ CI/CD integration workflows
+❌ Advanced security auditing
 
 ## File Structure
 
@@ -177,11 +207,20 @@ postman-skill/
 │   ├── test/
 │   │   ├── list_collections.md   # Discovery workflow
 │   │   └── run_collection.md     # Test execution workflow
+│   ├── design/
+│   │   ├── validate_schema.md    # Schema validation workflow
+│   │   └── version_comparison.md # API version comparison workflow
 │   ├── build/
 │   │   ├── manage_collections.md # Collection management workflow
 │   │   └── manage_environments.md # Environment management workflow
-│   └── observe/
-│       └── manage_monitors.md    # Monitor management workflow
+│   ├── secure/
+│   │   └── check_auth.md         # Authentication check workflow
+│   ├── deploy/
+│   │   └── manage_mocks.md       # Mock server management workflow
+│   ├── observe/
+│   │   └── manage_monitors.md    # Monitor management workflow
+│   └── distribute/
+│       └── view_documentation.md # Documentation access workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
 │   ├── postman_client.py         # API client with CRUD operations

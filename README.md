@@ -139,19 +139,19 @@ print(response.content)
 
 ### Capabilities
 
-#### ✅ Discover Phase (Phases 1-4)
+#### ✅ Discover Phase
 - List collections, environments, monitors, and APIs
 - Get detailed resource information
 - Workspace resource discovery
 - Error handling with retry logic
 
-#### ✅ Design Phase (Phase 5 - Part 1)
+#### ✅ Design Phase
 - Validate API schemas (OpenAPI, Swagger, GraphQL)
 - Get API versions and compare changes
 - Manage API definitions and versions
 - Create, update, and delete APIs
 
-#### ✅ Build Phase (Phase 7)
+#### ✅ Build Phase
 - Create new collections and environments
 - Update existing collections and environments
 - Delete collections and environments
@@ -159,32 +159,32 @@ print(response.content)
 - Add requests to collections
 - Manage environment variables (including secrets)
 
-#### ✅ Test Phase (Phase 5 - Original)
+#### ✅ Test Phase
 - Run collection tests with Newman integration
 - Execute test suites with environment variables
 - Parse and format test results
 - Detailed pass/fail reporting with assertions
 
-#### ✅ Secure Phase (Phase 5 - Part 2)
+#### ✅ Secure Phase
 - Check authentication configuration
 - Review security settings in collections
 - Identify unsecured endpoints
 - Get security recommendations
 
-#### ✅ Deploy Phase (Phase 5 - Part 3)
+#### ✅ Deploy Phase
 - Create and manage mock servers
 - List all mocks in workspace
 - Update mock server configuration
 - Delete mock servers
 
-#### ✅ Observe Phase (Phase 6)
+#### ✅ Observe Phase
 - Create, update, and delete monitors
 - List all monitors with status
 - View monitor run history and analytics
 - Analyze success rates and response times
 - Get detailed run diagnostics
 
-#### ✅ Distribute Phase (Phase 5 - Part 4)
+#### ✅ Distribute Phase
 - View API documentation
 - Assess documentation quality and completeness
 - Check for missing descriptions or examples

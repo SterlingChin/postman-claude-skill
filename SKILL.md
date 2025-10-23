@@ -1,21 +1,39 @@
 ---
 name: postman
 description: API lifecycle management through Postman. Discover collections, run tests, monitor APIs, validate schemas, and publish documentation across the complete API development workflow.
+version: 1.1.0
 ---
 
 # Postman Agent Skill
 
+**Version**: 1.1.0 (Phase 1 - Core API Compatibility)
+**API Support**: Postman v10+ (with v9 graceful degradation)
+
 ## Overview
 
 This skill gives Claude the ability to interact with the Postman API to manage the complete API lifecycle. It enables discovery of workspace resources, execution of test collections, monitoring analysis, and more.
+
+### What's New in v1.1 (Phase 1)
+
+✨ **Enhanced Error Handling**: Custom exception classes with helpful resolution guidance
+🔀 **Git-like Workflows**: Fork collections, create pull requests, and merge changes
+🔐 **Auto-Secret Detection**: Automatically protects sensitive environment variables
+🔄 **Smart Duplication**: Copy collections and environments with full fidelity
+📡 **API Version Detection**: Automatic detection with compatibility warnings
+🎯 **Improved Developer Experience**: Simplified APIs and better error messages
 
 ## Capabilities
 
 - **Discover**: List collections, APIs, environments, and monitors in your workspace
 - **Design**: Validate API schemas, compare versions, and manage API definitions
 - **Build**: Create, update, and delete collections and environments
+  - 🆕 **Fork & Merge**: Git-like version control for collections (v10+)
+  - 🆕 **Pull Requests**: Collaborative collection editing workflows (v10+)
+  - 🆕 **Smart Duplication**: Copy collections and environments with full metadata
 - **Test**: Run collection test suites with Newman and analyze results
 - **Secure**: Check authentication configuration and security settings
+  - 🆕 **Auto-Secret Detection**: Automatically mark sensitive variables as secrets
+  - 🆕 **Secret Preservation**: Maintain secret types across operations
 - **Deploy**: Create and manage mock servers for API prototyping
 - **Observe**: Create, manage, and analyze monitors for continuous API monitoring
 - **Distribute**: View and assess API documentation quality
@@ -73,10 +91,22 @@ Compare different versions of an API to identify changes, breaking updates, and 
 
 Create, update, delete, and duplicate Postman collections. Build new test collections, organize existing ones, and manage collection lifecycle programmatically.
 
+🆕 **v1.1 Enhanced Features**:
+- Fork collections for independent development
+- Create and manage pull requests
+- Merge changes from forks
+- Duplicate collections with full metadata preservation
+
 ### Manage Environments
 **File**: `workflows/build/manage_environments.md`
 
 Create, update, delete, and duplicate Postman environments. Set up environment variables for different stages (dev, staging, production) and manage environment configurations.
+
+🆕 **v1.1 Enhanced Features**:
+- Automatic secret detection for sensitive variables (api_key, token, password, etc.)
+- Partial updates that preserve existing secrets
+- Duplicate environments with secret preservation
+- Simplified dict-based API for quick environment creation
 
 ### Run Collection Tests
 **File**: `workflows/test/run_collection.md`
@@ -143,12 +173,23 @@ postman-skill/
 │   ├── manage_environments.py    # Environment management CLI
 │   ├── run_collection.py         # Newman test execution wrapper
 │   └── manage_monitors.py        # Monitor management CLI
-└── utils/
-    ├── retry_handler.py          # Retry logic with backoff
-    └── formatters.py             # Output formatting (collections, monitors, runs)
+├── utils/
+│   ├── retry_handler.py          # Retry logic with backoff
+│   ├── formatters.py             # Output formatting (collections, monitors, runs)
+│   └── exceptions.py             # 🆕 Custom exception classes with helpful messages
+├── tests/
+│   ├── test_phase1_manual.py     # 🆕 Phase 1 test suite
+│   └── README.md                 # 🆕 Testing guide
+└── docs/
+    ├── assessment-report.md      # 🆕 Current state analysis
+    ├── api-compatibility-matrix.md # 🆕 API endpoint coverage
+    ├── gap-analysis.md           # 🆕 Implementation roadmap
+    └── compatibility-strategy.md # 🆕 v10+ compatibility approach
 ```
 
 ## Example Usage
+
+### Basic Operations
 
 **List all collections:**
 ```bash
@@ -160,9 +201,57 @@ python /skills/postman-skill/scripts/list_collections.py
 python /skills/postman-skill/scripts/manage_collections.py --create --name "My API Tests"
 ```
 
-**Create an environment:**
-```bash
-python /skills/postman-skill/scripts/manage_environments.py --create --name "Development" --add-var '{"key":"API_URL","value":"https://dev.api.com"}'
+**Create an environment with auto-secret detection (v1.1):**
+```python
+from scripts.postman_client import PostmanClient
+
+client = PostmanClient()
+env = client.create_environment(
+    name="Production",
+    values={
+        "base_url": "https://api.example.com",
+        "api_key": "secret-key-123",      # Auto-detected as secret! 🔐
+        "bearer_token": "bearer-xyz-456"  # Auto-detected as secret! 🔐
+    }
+)
+```
+
+### Version Control Workflows (v1.1 - v10+ Required)
+
+**Fork a collection:**
+```python
+# Create a fork for independent development
+fork = client.fork_collection(
+    collection_uid="12345-abcde",
+    label="feature-new-tests"
+)
+print(f"Forked collection: {fork['uid']}")
+```
+
+**Create a pull request:**
+```python
+# Propose merging your changes
+pr = client.create_pull_request(
+    collection_uid="12345-abcde",      # Parent collection
+    source_collection_uid=fork['uid'], # Your fork
+    title="Add authentication tests",
+    description="This PR adds comprehensive auth test coverage"
+)
+```
+
+**Merge a pull request:**
+```python
+# Merge approved changes
+client.merge_pull_request("12345-abcde", pr['id'])
+```
+
+**Duplicate a collection:**
+```python
+# Create a standalone copy (not a fork)
+backup = client.duplicate_collection(
+    collection_uid="12345-abcde",
+    name="My Collection Backup"
+)
 ```
 
 **Validate API schema:**
@@ -203,26 +292,75 @@ python /skills/postman-skill/scripts/manage_monitors.py --list
 python /skills/postman-skill/scripts/manage_monitors.py --analyze <monitor-id> --limit 20
 ```
 
-## Error Handling
+## Error Handling (Enhanced in v1.1)
 
 All scripts include:
-- Automatic retry with exponential backoff (3 attempts)
-- Clear error messages with resolution guidance
-- Validation of required environment variables
-- Rate limit handling
+- **Custom Exception Classes**: Specific exceptions for each error type
+  - `AuthenticationError` (401) - Invalid API key with setup instructions
+  - `PermissionError` (403) - Insufficient permissions with resolution steps
+  - `ResourceNotFoundError` (404) - Missing resources with possible causes
+  - `ValidationError` (400) - Request validation failures with details
+  - `RateLimitError` (429) - Rate limit exceeded with retry-after info
+  - `ServerError` (5xx) - Server errors with status page link
+  - `NetworkError` - Connection issues with troubleshooting steps
+  - `TimeoutError` - Request timeouts with configuration guidance
+- **Automatic retry** with exponential backoff (3 attempts)
+- **Helpful error messages** with resolution guidance
+- **API version detection** with compatibility warnings
+- **Rate limit handling** with automatic backoff
 
-## Security
+### Error Message Example
+
+Before (v1.0):
+```
+Exception: API request failed with status 404: Resource not found
+```
+
+After (v1.1):
+```
+ResourceNotFoundError: Collection with ID '12345' was not found.
+
+Possible reasons:
+- The resource was deleted
+- The ID is incorrect
+- You don't have permission to access it
+- The resource is in a different workspace
+```
+
+## Security (Enhanced in v1.1)
 
 - API keys read from environment variables only
 - All operations scoped to configured workspace
 - Rate limiting with automatic backoff
 - No sensitive data logged or cached
+- 🆕 **Automatic secret detection** for environment variables
+- 🆕 **Secret type preservation** across updates and duplication
+- 🆕 **11 sensitive keywords** monitored (api_key, token, password, bearer, auth, etc.)
+- 🆕 **No accidental exposure** of credentials in default-typed variables
 
 ## Limitations
 
 - Runs in code execution container (no network access restrictions apply to API calls)
 - Maximum 8MB skill size
 - Uses pre-installed Python packages only
+- Collection forking and pull requests require Postman v10+ API
+- Some enterprise features may require paid Postman plans
+
+## API Version Compatibility
+
+This skill is optimized for **Postman v10+ APIs** but maintains graceful degradation:
+
+| Feature | v9 API | v10+ API |
+|---------|--------|----------|
+| Collections CRUD | ✅ Best Effort | ✅ Full Support |
+| Collection Forking | ❌ Not Available | ✅ Full Support |
+| Pull Requests | ❌ Not Available | ✅ Full Support |
+| Environments CRUD | ✅ Best Effort | ✅ Full Support |
+| Secret Variables | ⚠️ Limited | ✅ Full Support |
+| Custom Exceptions | ✅ Full Support | ✅ Full Support |
+| Version Detection | ✅ Full Support | ✅ Full Support |
+
+The client automatically detects your API version and will show warnings if v10+ features are unavailable.
 
 ## Next Steps
 

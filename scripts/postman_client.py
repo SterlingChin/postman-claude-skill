@@ -4,6 +4,7 @@ Postman API client with retry logic and error handling.
 
 import sys
 import os
+import warnings
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -11,25 +12,98 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import requests
 from scripts.config import PostmanConfig
 from utils.retry_handler import RetryHandler
+from utils.exceptions import (
+    create_exception_from_response,
+    NetworkError,
+    TimeoutError
+)
 
 
 class PostmanClient:
     """
     Client for interacting with the Postman API.
     Handles authentication, retries, and response parsing.
+
+    Supports Postman v10+ APIs with backward compatibility detection.
     """
 
     def __init__(self, config=None):
         self.config = config or PostmanConfig()
         self.config.validate()
         self.retry_handler = RetryHandler(max_retries=self.config.max_retries)
+        self.api_version = None  # Will be detected on first request
+        self.api_version_warned = False  # Track if we've warned about old version
+
+    def _detect_api_version(self, response):
+        """
+        Detect API version from response.
+
+        This is primarily for logging and user awareness.
+        Args:
+            response: requests.Response object
+        """
+        # Try X-API-Version header first
+        version_header = response.headers.get('X-API-Version')
+        if version_header:
+            self.api_version = version_header
+            return
+
+        # Try to infer from response structure
+        try:
+            data = response.json()
+            # v10+ typically includes 'meta' fields
+            if self._has_v10_structure(data):
+                self.api_version = 'v10+'
+            else:
+                self.api_version = 'v9-or-earlier'
+        except:
+            self.api_version = 'unknown'
+
+        # Warn if using old version
+        if self.api_version and not str(self.api_version).startswith('v10') and not self.api_version_warned:
+            self._warn_about_old_version()
+
+    def _has_v10_structure(self, data):
+        """
+        Check if response has v10+ structure indicators.
+
+        Args:
+            data: Parsed JSON response
+
+        Returns:
+            True if response appears to be v10+, False otherwise
+        """
+        # Check for v10+ metadata indicators
+        if 'meta' in data:
+            return True
+
+        # Check collection/environment structure
+        if 'collection' in data:
+            collection = data['collection']
+            if 'fork' in collection or 'meta' in collection:
+                return True
+
+        # Default to assuming v10+ (optimistic)
+        return True
+
+    def _warn_about_old_version(self):
+        """Warn user about using older API version."""
+        if not self.api_version_warned:
+            warnings.warn(
+                f"Detected API version: {self.api_version}. "
+                "This skill is optimized for Postman v10+ APIs. "
+                "Some features may not work correctly with older versions. "
+                "Please upgrade to Postman v10+ for best experience.",
+                UserWarning
+            )
+            self.api_version_warned = True
 
     def _make_request(self, method, endpoint, **kwargs):
         """
-        Make an API request with retry logic.
+        Make an API request with retry logic and enhanced error handling.
 
         Args:
-            method: HTTP method (get, post, etc.)
+            method: HTTP method (GET, POST, PUT, DELETE, PATCH)
             endpoint: API endpoint path (without base URL)
             **kwargs: Additional arguments for requests
 
@@ -37,28 +111,46 @@ class PostmanClient:
             Parsed JSON response
 
         Raises:
-            Exception: If request fails after retries
+            AuthenticationError: If authentication fails (401)
+            PermissionError: If insufficient permissions (403)
+            ResourceNotFoundError: If resource not found (404)
+            ValidationError: If request validation fails (400)
+            RateLimitError: If rate limit exceeded (429)
+            ServerError: If server error occurs (5xx)
+            NetworkError: If network connection fails
+            TimeoutError: If request times out
+            PostmanAPIError: For other API errors
         """
         url = f"{self.config.base_url}{endpoint}"
         kwargs['headers'] = self.config.headers
         kwargs['timeout'] = self.config.timeout
 
-        # Use retry handler
-        response = self.retry_handler.execute(
-            lambda: requests.request(method, url, **kwargs)
-        )
+        try:
+            # Use retry handler
+            response = self.retry_handler.execute(
+                lambda: requests.request(method, url, **kwargs)
+            )
+        except requests.exceptions.Timeout as e:
+            raise TimeoutError(
+                timeout_seconds=self.config.timeout
+            ) from e
+        except requests.exceptions.ConnectionError as e:
+            raise NetworkError(original_error=e) from e
+        except requests.exceptions.RequestException as e:
+            raise NetworkError(
+                message=f"Request failed: {str(e)}",
+                original_error=e
+            ) from e
 
-        # Handle response
+        # Detect API version on first request
+        if self.api_version is None:
+            self._detect_api_version(response)
+
+        # Handle error responses
         if response.status_code >= 400:
-            error_msg = f"API request failed with status {response.status_code}"
-            try:
-                error_data = response.json()
-                if 'error' in error_data:
-                    error_msg += f": {error_data['error'].get('message', 'Unknown error')}"
-            except:
-                error_msg += f": {response.text}"
-            raise Exception(error_msg)
+            raise create_exception_from_response(response)
 
+        # Return parsed response
         return response.json()
 
     def list_collections(self, workspace_id=None):
@@ -148,6 +240,176 @@ class PostmanClient:
         response = self._make_request('DELETE', endpoint)
         return response
 
+    def fork_collection(self, collection_uid, label=None, workspace_id=None):
+        """
+        Create a fork of a collection.
+
+        **Requires**: Postman v10+ API
+
+        A fork is an independent copy of a collection that can be modified
+        separately. Forks enable version control workflows with pull requests.
+
+        Args:
+            collection_uid: Collection UID to fork
+            label: Optional label/name for the fork
+            workspace_id: Workspace for the fork (uses config default if not provided)
+
+        Returns:
+            Forked collection object with fork metadata
+
+        Example:
+            >>> client.fork_collection(
+            ...     collection_uid="12345-abcd",
+            ...     label="my-feature-branch",
+            ...     workspace_id="67890-efgh"
+            ... )
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        endpoint = f"/collections/{collection_uid}/forks"
+        payload = {}
+
+        if label:
+            payload['label'] = label
+        if workspace_id:
+            payload['workspace'] = workspace_id
+
+        response = self._make_request('POST', endpoint, json=payload)
+        return response.get('fork', {})
+
+    def create_pull_request(self, collection_uid, source_collection_uid,
+                           title=None, description=None, reviewers=None):
+        """
+        Create a pull request to merge changes from a forked collection.
+
+        **Requires**: Postman v10+ API
+
+        Pull requests allow you to propose merging changes from a fork
+        back to the parent collection.
+
+        Args:
+            collection_uid: Destination collection UID (parent)
+            source_collection_uid: Source collection UID (fork)
+            title: Pull request title
+            description: Pull request description
+            reviewers: List of reviewer user IDs (optional)
+
+        Returns:
+            Pull request object
+
+        Example:
+            >>> client.create_pull_request(
+            ...     collection_uid="parent-12345",
+            ...     source_collection_uid="fork-67890",
+            ...     title="Add new authentication tests",
+            ...     description="This PR adds comprehensive auth tests"
+            ... )
+        """
+        endpoint = f"/collections/{collection_uid}/pull-requests"
+        payload = {
+            'source': source_collection_uid
+        }
+
+        if title:
+            payload['title'] = title
+        if description:
+            payload['description'] = description
+        if reviewers:
+            payload['reviewers'] = reviewers
+
+        response = self._make_request('POST', endpoint, json=payload)
+        return response.get('pull_request', {})
+
+    def get_pull_requests(self, collection_uid, status=None):
+        """
+        Get pull requests for a collection.
+
+        **Requires**: Postman v10+ API
+
+        Args:
+            collection_uid: Collection UID
+            status: Filter by status ('open', 'closed', 'merged') (optional)
+
+        Returns:
+            List of pull request objects
+
+        Example:
+            >>> # Get all open PRs
+            >>> client.get_pull_requests("12345-abcd", status="open")
+        """
+        endpoint = f"/collections/{collection_uid}/pull-requests"
+
+        if status:
+            endpoint += f"?status={status}"
+
+        response = self._make_request('GET', endpoint)
+        return response.get('pull_requests', [])
+
+    def merge_pull_request(self, collection_uid, pull_request_id):
+        """
+        Merge a pull request.
+
+        **Requires**: Postman v10+ API
+
+        Merges the changes from a fork into the parent collection.
+
+        Args:
+            collection_uid: Collection UID
+            pull_request_id: Pull request ID to merge
+
+        Returns:
+            Merged pull request object
+
+        Example:
+            >>> client.merge_pull_request("12345-abcd", "pr-789")
+        """
+        endpoint = f"/collections/{collection_uid}/pull-requests/{pull_request_id}/merge"
+        response = self._make_request('POST', endpoint)
+        return response.get('pull_request', {})
+
+    def duplicate_collection(self, collection_uid, name=None, workspace_id=None):
+        """
+        Duplicate a collection (create a copy, not a fork).
+
+        Creates a complete copy of a collection without version control linkage.
+        Unlike forking, duplicating creates a standalone collection.
+
+        Args:
+            collection_uid: Collection UID to duplicate
+            name: Name for the duplicate (defaults to original name + " Copy")
+            workspace_id: Workspace for duplicate (uses config default if not provided)
+
+        Returns:
+            Duplicated collection object
+
+        Example:
+            >>> client.duplicate_collection(
+            ...     collection_uid="12345-abcd",
+            ...     name="My Collection Backup"
+            ... )
+        """
+        # Get original collection
+        original = self.get_collection(collection_uid)
+
+        # Prepare new collection data
+        new_collection = original.copy()
+
+        # Set new name
+        if name:
+            new_collection['info']['name'] = name
+        else:
+            original_name = original.get('info', {}).get('name', 'Collection')
+            new_collection['info']['name'] = f"{original_name} Copy"
+
+        # Remove UID and other metadata that shouldn't be copied
+        if 'uid' in new_collection.get('info', {}):
+            del new_collection['info']['uid']
+        if '_postman_id' in new_collection.get('info', {}):
+            del new_collection['info']['_postman_id']
+
+        # Create new collection
+        return self.create_collection(new_collection, workspace_id)
+
     def list_environments(self, workspace_id=None):
         """
         List all environments in a workspace.
@@ -182,42 +444,174 @@ class PostmanClient:
         response = self._make_request('GET', endpoint)
         return response.get('environment', {})
 
-    def create_environment(self, environment_data, workspace_id=None):
+    def create_environment(self, name, values=None, workspace_id=None):
         """
-        Create a new environment.
+        Create a new environment with automatic secret detection.
+
+        **Enhanced in v2.0**: Automatically detects sensitive variables and
+        marks them as secrets.
 
         Args:
-            environment_data: Dictionary containing environment configuration:
-                - name: Environment name
-                - values: List of environment variables (key, value, type, enabled)
-            workspace_id: Workspace ID to create environment in (uses config default if not provided)
+            name: Environment name
+            values: Dict of variable name -> value pairs, or list of variable objects
+            workspace_id: Workspace ID (uses config default if not provided)
 
         Returns:
             Created environment object
+
+        Example:
+            >>> # Simple dict format with auto-secret detection
+            >>> client.create_environment(
+            ...     name="Production",
+            ...     values={
+            ...         "base_url": "https://api.example.com",
+            ...         "api_key": "secret-key-123",  # Auto-detected as secret
+            ...         "timeout": "30"
+            ...     }
+            ... )
+            >>>
+            >>> # Advanced format with explicit types
+            >>> client.create_environment(
+            ...     name="Production",
+            ...     values=[
+            ...         {"key": "base_url", "value": "https://api.example.com", "type": "default"},
+            ...         {"key": "api_key", "value": "secret-key-123", "type": "secret"}
+            ...     ]
+            ... )
         """
         workspace_id = workspace_id or self.config.workspace_id
 
+        endpoint = "/environments"
         if workspace_id:
-            endpoint = f"/environments?workspace={workspace_id}"
-        else:
-            endpoint = "/environments"
+            endpoint += f"?workspace={workspace_id}"
 
-        response = self._make_request('POST', endpoint, json={'environment': environment_data})
+        # Format variables
+        variables = []
+        if values:
+            if isinstance(values, dict):
+                # Convert dict to variable list with auto-secret detection
+                for key, value in values.items():
+                    var = {
+                        'key': key,
+                        'value': str(value),
+                        'type': self._detect_secret_type(key),
+                        'enabled': True
+                    }
+                    variables.append(var)
+            elif isinstance(values, list):
+                # Use provided list, ensure all have required fields
+                for var in values:
+                    if 'type' not in var:
+                        var['type'] = self._detect_secret_type(var.get('key', ''))
+                    if 'enabled' not in var:
+                        var['enabled'] = True
+                    variables.append(var)
+
+        payload = {
+            'environment': {
+                'name': name,
+                'values': variables
+            }
+        }
+
+        response = self._make_request('POST', endpoint, json=payload)
         return response.get('environment', {})
 
-    def update_environment(self, environment_uid, environment_data):
+    def _detect_secret_type(self, key):
+        """
+        Detect if a variable should be marked as secret based on its name.
+
+        Args:
+            key: Variable name
+
+        Returns:
+            'secret' if the variable appears sensitive, 'default' otherwise
+        """
+        sensitive_keywords = [
+            'key', 'token', 'secret', 'password', 'passwd',
+            'pwd', 'auth', 'credential', 'private', 'apikey',
+            'api_key', 'bearer', 'authorization'
+        ]
+
+        key_lower = key.lower()
+        for keyword in sensitive_keywords:
+            if keyword in key_lower:
+                return 'secret'
+
+        return 'default'
+
+    def update_environment(self, environment_uid, name=None, values=None):
         """
         Update an existing environment.
 
+        **Enhanced in v2.0**: Supports partial updates and automatic secret detection.
+
         Args:
-            environment_uid: Unique identifier for the environment
-            environment_data: Dictionary containing fields to update
+            environment_uid: Environment UID
+            name: New name (optional)
+            values: Dict of variable updates or list of variables (optional)
 
         Returns:
             Updated environment object
+
+        Example:
+            >>> # Update just the name
+            >>> client.update_environment("env-123", name="Staging v2")
+            >>>
+            >>> # Update/add variables
+            >>> client.update_environment(
+            ...     "env-123",
+            ...     values={
+            ...         "api_key": "new-secret-key",  # Updates existing or adds new
+            ...         "new_var": "value"
+            ...     }
+            ... )
         """
         endpoint = f"/environments/{environment_uid}"
-        response = self._make_request('PUT', endpoint, json={'environment': environment_data})
+
+        # Get current environment
+        current = self.get_environment(environment_uid)
+
+        # Update name if provided
+        if name:
+            current['name'] = name
+
+        # Update variables if provided
+        if values:
+            current_vars = {v['key']: v for v in current.get('values', [])}
+
+            if isinstance(values, dict):
+                # Update existing or add new variables
+                for key, value in values.items():
+                    if key in current_vars:
+                        # Update existing variable
+                        current_vars[key]['value'] = str(value)
+                        # Preserve type unless it should be secret
+                        if current_vars[key].get('type') != 'secret':
+                            current_vars[key]['type'] = self._detect_secret_type(key)
+                    else:
+                        # Add new variable
+                        var = {
+                            'key': key,
+                            'value': str(value),
+                            'type': self._detect_secret_type(key),
+                            'enabled': True
+                        }
+                        current_vars[key] = var
+
+                current['values'] = list(current_vars.values())
+
+            elif isinstance(values, list):
+                # Replace all variables
+                for var in values:
+                    if 'type' not in var:
+                        var['type'] = self._detect_secret_type(var.get('key', ''))
+                    if 'enabled' not in var:
+                        var['enabled'] = True
+                current['values'] = values
+
+        payload = {'environment': current}
+        response = self._make_request('PUT', endpoint, json=payload)
         return response.get('environment', {})
 
     def delete_environment(self, environment_uid):
@@ -233,6 +627,39 @@ class PostmanClient:
         endpoint = f"/environments/{environment_uid}"
         response = self._make_request('DELETE', endpoint)
         return response
+
+    def duplicate_environment(self, environment_uid, name=None, workspace_id=None):
+        """
+        Duplicate an environment.
+
+        Creates a complete copy of an environment including all variables.
+        Secret variables are preserved with their secret type.
+
+        Args:
+            environment_uid: Environment UID to duplicate
+            name: Name for the duplicate (defaults to original name + " Copy")
+            workspace_id: Workspace for duplicate (uses config default if not provided)
+
+        Returns:
+            Duplicated environment object
+
+        Example:
+            >>> client.duplicate_environment(
+            ...     environment_uid="env-123",
+            ...     name="Production Backup"
+            ... )
+        """
+        # Get original environment
+        original = self.get_environment(environment_uid)
+
+        # Prepare new environment name
+        new_name = name or f"{original['name']} Copy"
+
+        # Extract variables (preserve types including secrets)
+        values = original.get('values', [])
+
+        # Create new environment
+        return self.create_environment(new_name, values, workspace_id)
 
     def run_collection(self, collection_uid, environment_uid=None):
         """

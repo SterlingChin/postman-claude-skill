@@ -166,6 +166,103 @@ Before submitting a PR, test your changes:
 - [ ] Documentation is updated
 - [ ] No sensitive data (API keys, etc.) in commits
 - [ ] `.gitignore` properly excludes sensitive files
+- [ ] Skill can be packaged correctly (see [Packaging](#packaging))
+
+## Packaging
+
+### Important: Claude Desktop's 10-Folder Depth Limit
+
+Claude Desktop has a **hard limit of 10 folder depth** for zip files. Directories like `venv/`, `node_modules/`, and `.git/` often exceed this limit and **must be excluded** from packages.
+
+### Using the Packaging Script
+
+Always use the provided packaging script to create distribution-ready zip files:
+
+```bash
+cd postman-skill
+./package_skill.sh
+```
+
+This script:
+- Excludes deep directories (`venv/`, `.git/`, etc.)
+- Removes unnecessary files (`.DS_Store`, `__pycache__/`, etc.)
+- Excludes secrets (`.env` files)
+- Creates a clean zip in the parent directory
+
+### What Gets Excluded
+
+The `.skillignore` file documents all exclusion patterns:
+
+```
+venv/              # Python virtual environment (10+ folders deep)
+.git/              # Git repository metadata
+.env               # Environment variables (contains secrets)
+__pycache__/       # Python cache files
+.claude/           # Claude Desktop metadata
+*.pyc              # Compiled Python files
+.DS_Store          # macOS metadata
+.vscode/           # IDE settings
+.idea/             # IDE settings
+dist/, build/      # Build artifacts
+```
+
+### Why This Matters
+
+**Before packaging script:**
+- `postman-skill.zip` = 6.3 MB
+- Contains `venv/lib/python3.13/site-packages/...` (10+ levels deep)
+- **Fails to install in Claude Desktop** with "path too deep" error
+
+**After packaging script:**
+- `postman-skill.zip` = 106 KB
+- Only includes source code and workflows
+- **Installs successfully** in Claude Desktop
+
+### Testing Your Package
+
+Before submitting a PR that adds files or directories:
+
+1. Run the packaging script:
+   ```bash
+   ./package_skill.sh
+   ```
+
+2. Verify the package is small (< 500 KB for this skill):
+   ```bash
+   ls -lh ../postman-skill.zip
+   ```
+
+3. Check for deep paths:
+   ```bash
+   unzip -l ../postman-skill.zip | awk -F/ '{print NF-1, $0}' | sort -rn | head -10
+   ```
+   All paths should be ≤ 9 folders deep.
+
+### Adding New Dependencies
+
+If you add Python dependencies:
+
+1. **DO NOT** commit `venv/` or virtual environment files
+2. **Update** `.gitignore` to exclude them
+3. **Update** `.skillignore` to document why they're excluded
+4. **Test** that `package_skill.sh` excludes them correctly
+
+### Manual Packaging (Not Recommended)
+
+If you must package manually, use the exact command from `package_skill.sh`:
+
+```bash
+zip -r ../postman-skill.zip . \
+  -x "venv/*" \
+  -x ".git/*" \
+  -x "*.DS_Store" \
+  -x "*.pyc" \
+  -x "*__pycache__/*" \
+  -x ".env" \
+  -x ".env.*" \
+  -x ".claude/*" \
+  # ... (see package_skill.sh for complete list)
+```
 
 ## Project Structure
 

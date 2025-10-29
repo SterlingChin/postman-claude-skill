@@ -113,6 +113,55 @@ response = client.messages.create(
 print(response.content)
 ```
 
+## Packaging for Claude Desktop
+
+If you're using Claude Desktop (not the API), you need to package the skill as a zip file. Claude Desktop has a **10-folder depth limit** for zip files, so you cannot simply zip the entire directory.
+
+### Automated Packaging (Recommended)
+
+Use the provided packaging script:
+
+```bash
+cd postman-skill
+./package_skill.sh
+```
+
+This will create `postman-skill.zip` in the parent directory, ready to install in Claude Desktop.
+
+### Manual Packaging
+
+If you need to create the zip manually:
+
+```bash
+cd postman-skill
+zip -r ../postman-skill.zip . \
+  -x "venv/*" \
+  -x ".git/*" \
+  -x "*.DS_Store" \
+  -x "*.pyc" \
+  -x "*__pycache__/*" \
+  -x ".env" \
+  -x ".claude/*"
+```
+
+### What Gets Excluded (and Why)
+
+The `.skillignore` file documents all excluded patterns:
+
+- **venv/** - Python virtual environment (10+ folders deep)
+- **.git/** - Git repository metadata (not needed at runtime)
+- **.env** - Contains secrets (never include in packages)
+- **__pycache__/** - Python cache files (regenerated automatically)
+- **IDE files** - .vscode/, .idea/, etc.
+
+### Installing in Claude Desktop
+
+1. Open Claude Desktop
+2. Go to Settings > Skills
+3. Click "Install Skill"
+4. Select the `postman-skill.zip` file
+5. Configure your `POSTMAN_API_KEY` in the skill settings
+
 ## What's Included in This POC
 
 ### Core Components

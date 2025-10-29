@@ -1,0 +1,58 @@
+# .skillignore
+# This file documents patterns to exclude when packaging the skill for Claude Desktop
+# Use package_skill.sh to create a properly packaged zip file
+#
+# WHY: Claude Desktop has a limitation of 10 folder depth in zip files.
+# Deep directories like venv/ and node_modules/ will cause installation errors.
+
+# Python virtual environments (10+ folders deep)
+venv/
+env/
+ENV/
+*.egg-info/
+
+# Git repository
+.git/
+.gitignore
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build artifacts
+dist/
+build/
+
+# Environment variables (contains secrets)
+.env
+*.env
+!.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+*.tmp
+
+# Claude Desktop metadata
+.claude/
+
+# This file and the packaging script
+.skillignore
+package_skill.sh

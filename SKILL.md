@@ -1,7 +1,6 @@
 ---
 name: postman
 description: API lifecycle management through Postman. Discover collections, run tests, monitor APIs, validate schemas, and publish documentation across the complete API development workflow.
-version: 1.1.0
 ---
 
 # Postman Agent Skill

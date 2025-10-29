@@ -8,6 +8,44 @@ description: API lifecycle management through Postman. Discover collections, run
 **Version**: 1.1.0 (Phase 1 - Core API Compatibility)
 **API Support**: Postman v10+ (with v9 graceful degradation)
 
+## ⚠️ IMPORTANT: Claude Desktop Network Limitation
+
+**This skill has limited functionality in Claude Desktop** due to network security restrictions.
+
+### Where This Skill Works
+
+| Environment | Status | Notes |
+|------------|--------|-------|
+| **Claude API** (Code Execution) | ✅ **Fully Supported** | No network restrictions |
+| **Local Python Scripts** | ✅ **Fully Supported** | Direct execution on your machine |
+| **Claude Desktop** | ❌ **Not Supported** | `api.getpostman.com` not in network allowlist |
+
+### Claude Desktop Network Allowlist
+
+Claude Desktop can only access these domains:
+- api.anthropic.com
+- github.com
+- pypi.org / pythonhosted.org
+- npmjs.com / registry.npmjs.org
+- archive.ubuntu.com / security.ubuntu.com
+
+**`api.getpostman.com` is NOT in this list**, which means the skill cannot make API calls to Postman from Claude Desktop.
+
+### How to Use This Skill
+
+**Option 1: Claude API with Code Execution (Recommended)**
+Use the skill through the Anthropic API with code execution enabled. This has no network restrictions.
+
+**Option 2: Local Python Scripts**
+Run the scripts directly on your machine:
+```bash
+python scripts/list_collections.py
+python scripts/manage_collections.py --list
+```
+
+**Option 3: Request Network Access (Advanced)**
+Contact Anthropic support to request `api.getpostman.com` be added to Claude Desktop's network allowlist (no guarantee this will be approved).
+
 ## Overview
 
 This skill gives Claude the ability to interact with the Postman API to manage the complete API lifecycle. It enables discovery of workspace resources, execution of test collections, monitoring analysis, and more.
@@ -55,18 +93,67 @@ Claude should use this skill when you:
 
 ## Prerequisites
 
-Before using this skill, ensure:
-1. `POSTMAN_API_KEY` environment variable is set (get yours from [Postman API Keys](https://web.postman.co/settings/me/api-keys))
-2. `POSTMAN_WORKSPACE_ID` is configured (recommended for users with many workspaces)
-3. Python 3 with `requests` module (pre-installed in Claude Code)
-4. For test execution: Node.js and Newman (`npm install -g newman`)
+This skill requires a `.env` file with your Postman API key. The `.env` file should be included in the skill package and is automatically loaded when any script runs.
+
+**Important**: If the skill is asking for an API key, it means the `.env` file is either:
+- Missing from the skill package
+- Empty or incorrectly formatted
+- Not readable by the scripts
+
+**To fix**: Ensure the skill package includes a `.env` file with:
+```
+POSTMAN_API_KEY=PMAK-your-key-here
+```
+
+Optional configuration in `.env`:
+```
+POSTMAN_WORKSPACE_ID=your-workspace-id
+POSTMAN_RATE_LIMIT_DELAY=60
+POSTMAN_MAX_RETRIES=3
+POSTMAN_TIMEOUT=30
+# POSTMAN_USE_PROXY=false  # Keep this false to bypass proxies (default)
+```
+
+## Proxy Configuration (Important for Corporate Networks)
+
+**By default, the skill bypasses all proxy servers** to avoid "403 Forbidden" proxy errors that commonly occur in Claude Desktop.
+
+If you see errors like:
+- `ProxyError: Unable to connect to proxy`
+- `Tunnel connection failed: 403 Forbidden`
+
+**The skill automatically handles this** - no action needed. The latest version bypasses proxies by default.
+
+If you're in a corporate environment and **need** to use a proxy:
+1. Add `POSTMAN_USE_PROXY=true` to your `.env` file
+2. Ensure your proxy allows connections to `api.getpostman.com`
 
 ## Getting Your Postman API Key
 
 1. Go to https://web.postman.co/settings/me/api-keys
 2. Click "Generate API Key"
 3. Copy the key (starts with `PMAK-`)
-4. Set it as an environment variable: `export POSTMAN_API_KEY="your-key-here"`
+4. Add it to the `.env` file in the skill directory
+
+## How to Use This Skill - IMPORTANT
+
+**⚠️ CRITICAL: All Postman API calls MUST be made through Python scripts**
+
+This skill uses Python scripts to interact with the Postman API. **DO NOT** attempt to call api.postman.com directly using HTTP requests, as this will fail due to CORS (Cross-Origin Resource Sharing) restrictions in browser environments.
+
+**Always use the Python scripts:**
+```python
+# ✅ CORRECT: Use Python scripts
+python /path/to/postman-skill/scripts/list_collections.py
+
+# ❌ WRONG: Direct API calls will fail with CORS errors
+# fetch('https://api.getpostman.com/collections')  # This will NOT work
+```
+
+**Why this matters:**
+- The Python `requests` library is not subject to CORS restrictions
+- Direct browser-based API calls to api.postman.com are blocked by CORS
+- All scripts automatically load your API key from the `.env` file
 
 ## Available Workflows
 

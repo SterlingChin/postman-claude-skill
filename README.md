@@ -5,30 +5,39 @@
 
 A Claude Agent Skill that enables AI-powered interaction with the Postman API for complete API lifecycle management.
 
+## ⚠️ Important: Environment Compatibility
+
+| Environment | Status | Notes |
+|------------|--------|-------|
+| **Claude API** (Code Execution) | ✅ Fully Supported | Recommended - no network restrictions |
+| **Local Python Scripts** | ✅ Fully Supported | Run scripts directly on your machine |
+| **Claude Desktop** | ❌ Not Supported | `api.getpostman.com` not in network allowlist |
+
+**Claude Desktop cannot access `api.getpostman.com`** due to network security restrictions. Use the Claude API with code execution or run scripts locally instead.
+
 ## What is This?
 
 This is an **Agent Skill** - a structured way to give Claude new capabilities through organized instructions and executable code. Agent Skills use progressive disclosure: Claude loads only what it needs when it needs it, keeping context usage efficient.
 
 ## Quick Start
 
-### 1. Get Your Postman API Key
+### For Local Use (Recommended)
+
+#### 1. Get Your Postman API Key
 
 1. Go to https://web.postman.co/settings/me/api-keys
 2. Click "Generate API Key"
 3. Copy the key (it starts with `PMAK-`)
 
-### 2. Set Environment Variable
+#### 2. Configure the Skill
 
 ```bash
-export POSTMAN_API_KEY="PMAK-your-key-here"
+cd postman-skill
+cp .env.example .env
+# Edit .env and add your POSTMAN_API_KEY
 ```
 
-Optional: Set your workspace ID to scope operations:
-```bash
-export POSTMAN_WORKSPACE_ID="your-workspace-id"
-```
-
-### 3. Test the Skill Locally
+#### 3. Test the Skill Locally
 
 ```bash
 # Test configuration and discover resources
@@ -59,7 +68,11 @@ python postman-skill/scripts/manage_monitors.py --list
 python postman-skill/scripts/manage_monitors.py --analyze <monitor-id>
 ```
 
-### 4. Upload to Claude (Agent Skills API)
+### For Claude API Use (Fully Supported)
+
+#### 4. Upload to Claude API (Agent Skills API)
+
+**Note**: This is for the Claude API with code execution, which has no network restrictions and fully supports this skill.
 
 Once you have an Anthropic API key with Skills beta access:
 
@@ -115,22 +128,80 @@ print(response.content)
 
 ## Packaging for Claude Desktop
 
-If you're using Claude Desktop (not the API), you need to package the skill as a zip file. Claude Desktop has a **10-folder depth limit** for zip files, so you cannot simply zip the entire directory.
+### ⚠️ WARNING: Claude Desktop Not Supported
 
-### Automated Packaging (Recommended)
+**This skill does NOT work in Claude Desktop** due to network restrictions. Claude Desktop can only access a whitelist of domains, and `api.getpostman.com` is not included.
 
-Use the provided packaging script:
+**Error you'll see**: `Failed to resolve 'api.getpostman.com'` (DNS resolution error)
 
-```bash
-cd postman-skill
-./package_skill.sh
-```
+**Use these alternatives instead**:
+- ✅ **Claude API** with code execution (recommended)
+- ✅ **Local Python scripts** (run directly on your machine)
 
-This will create `postman-skill.zip` in the parent directory, ready to install in Claude Desktop.
+### For Reference Only (Does Not Work in Claude Desktop)
 
-### Manual Packaging
+If you want to package the skill anyway (for potential future use if the network allowlist changes), here's how:
 
-If you need to create the zip manually:
+### Quick Start Workflow
+
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd postman-skill
+   ```
+
+2. **Set up your API key**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your POSTMAN_API_KEY
+   ```
+
+3. **Package the skill**
+   ```bash
+   ./package_skill.sh
+   ```
+
+4. **Install in Claude Desktop**
+   - Open Claude Desktop
+   - Go to Settings > Skills
+   - Click "Install Skill"
+   - Select `postman-skill.zip` from the parent directory
+
+### Why Packaging is Required
+
+Claude Desktop has a **10-folder depth limit** for zip files. Directories like `venv/` (Python virtual environment) can be 10+ folders deep and must be excluded.
+
+The packaging script:
+- ✅ **Includes** your `.env` file with API keys (needed at runtime)
+- ❌ **Excludes** deep directories (`venv/`, `.git/`)
+- ❌ **Excludes** unnecessary files (`.DS_Store`, `__pycache__/`)
+
+### What Gets Included vs Excluded
+
+**INCLUDED in the package:**
+- ✅ **.env** - Your API keys (required for the skill to work)
+- ✅ All Python scripts and workflows
+- ✅ Documentation and examples
+
+**EXCLUDED from the package:**
+- ❌ **venv/** - Python virtual environment (10+ folders deep)
+- ❌ **.git/** - Git repository metadata
+- ❌ **.env.example** - Template file (not needed at runtime)
+- ❌ **__pycache__/** - Python cache files
+- ❌ **IDE files** - .vscode/, .idea/, etc.
+
+### Important: .env File Handling
+
+The `.env` file has different rules for git vs packaging:
+
+| Context | .env Status | Why |
+|---------|-------------|-----|
+| **Git repository** | ❌ Excluded (in `.gitignore`) | Security: Never commit API keys |
+| **Skill package** | ✅ Included (in zip) | Required: Claude needs your API keys at runtime |
+
+### Manual Packaging (Not Recommended)
+
+If you need to package manually:
 
 ```bash
 cd postman-skill
@@ -140,27 +211,11 @@ zip -r ../postman-skill.zip . \
   -x "*.DS_Store" \
   -x "*.pyc" \
   -x "*__pycache__/*" \
-  -x ".env" \
+  -x ".env.example" \
   -x ".claude/*"
 ```
 
-### What Gets Excluded (and Why)
-
-The `.skillignore` file documents all excluded patterns:
-
-- **venv/** - Python virtual environment (10+ folders deep)
-- **.git/** - Git repository metadata (not needed at runtime)
-- **.env** - Contains secrets (never include in packages)
-- **__pycache__/** - Python cache files (regenerated automatically)
-- **IDE files** - .vscode/, .idea/, etc.
-
-### Installing in Claude Desktop
-
-1. Open Claude Desktop
-2. Go to Settings > Skills
-3. Click "Install Skill"
-4. Select the `postman-skill.zip` file
-5. Configure your `POSTMAN_API_KEY` in the skill settings
+Note: `.env` is **not** in the exclusion list - it must be included!
 
 ## What's Included in This POC
 

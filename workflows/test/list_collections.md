@@ -4,7 +4,16 @@
 - **Phase**: Define
 - **Complexity**: Simple
 - **Estimated Time**: 30 seconds
-- **Prerequisites**: POSTMAN_API_KEY environment variable set
+- **Prerequisites**: `.env` file with POSTMAN_API_KEY (automatically loaded)
+
+## ⚠️ IMPORTANT: API Call Method
+
+**All Postman API interactions MUST use the Python scripts provided.**
+
+- ✅ **CORRECT**: Run `python /skills/postman-skill/scripts/list_collections.py`
+- ❌ **WRONG**: Direct HTTP calls to `api.getpostman.com` (will fail with CORS errors)
+
+The Python scripts automatically load your API key from the `.env` file in the skill package. Direct browser-based API calls will be blocked by CORS.
 
 ## When to Use
 
@@ -16,20 +25,9 @@ Use this workflow when:
 
 ## Prerequisites Check
 
-Before starting, verify:
-1. `POSTMAN_API_KEY` is set in environment
-2. (Optional) `POSTMAN_WORKSPACE_ID` is set to scope to specific workspace
+The script automatically loads configuration from the `.env` file in the skill package. If the API key is not found, the script will provide clear instructions on how to add it to the `.env` file.
 
-To check:
-```bash
-echo $POSTMAN_API_KEY
-```
-
-If not set, guide user to get their API key:
-1. Go to https://web.postman.co/settings/me/api-keys
-2. Click "Generate API Key"
-3. Copy the key (starts with `PMAK-`)
-4. Set environment variable: `export POSTMAN_API_KEY="your-key-here"`
+**No manual environment variable setup is required** - just ensure the skill was packaged with a properly configured `.env` file.
 
 ## Instructions
 

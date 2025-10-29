@@ -5,30 +5,39 @@
 
 A Claude Agent Skill that enables AI-powered interaction with the Postman API for complete API lifecycle management.
 
+## ⚠️ Important: Environment Compatibility
+
+| Environment | Status | Notes |
+|------------|--------|-------|
+| **Claude API** (Code Execution) | ✅ Fully Supported | Recommended - no network restrictions |
+| **Local Python Scripts** | ✅ Fully Supported | Run scripts directly on your machine |
+| **Claude Desktop** | ❌ Not Supported | `api.getpostman.com` not in network allowlist |
+
+**Claude Desktop cannot access `api.getpostman.com`** due to network security restrictions. Use the Claude API with code execution or run scripts locally instead.
+
 ## What is This?
 
 This is an **Agent Skill** - a structured way to give Claude new capabilities through organized instructions and executable code. Agent Skills use progressive disclosure: Claude loads only what it needs when it needs it, keeping context usage efficient.
 
 ## Quick Start
 
-### 1. Get Your Postman API Key
+### For Local Use (Recommended)
+
+#### 1. Get Your Postman API Key
 
 1. Go to https://web.postman.co/settings/me/api-keys
 2. Click "Generate API Key"
 3. Copy the key (it starts with `PMAK-`)
 
-### 2. Set Environment Variable
+#### 2. Configure the Skill
 
 ```bash
-export POSTMAN_API_KEY="PMAK-your-key-here"
+cd postman-skill
+cp .env.example .env
+# Edit .env and add your POSTMAN_API_KEY
 ```
 
-Optional: Set your workspace ID to scope operations:
-```bash
-export POSTMAN_WORKSPACE_ID="your-workspace-id"
-```
-
-### 3. Test the Skill Locally
+#### 3. Test the Skill Locally
 
 ```bash
 # Test configuration and discover resources
@@ -59,7 +68,11 @@ python postman-skill/scripts/manage_monitors.py --list
 python postman-skill/scripts/manage_monitors.py --analyze <monitor-id>
 ```
 
-### 4. Upload to Claude (Agent Skills API)
+### For Claude API Use (Fully Supported)
+
+#### 4. Upload to Claude API (Agent Skills API)
+
+**Note**: This is for the Claude API with code execution, which has no network restrictions and fully supports this skill.
 
 Once you have an Anthropic API key with Skills beta access:
 
@@ -115,7 +128,19 @@ print(response.content)
 
 ## Packaging for Claude Desktop
 
-If you're using Claude Desktop (not the API), you need to package the skill with your API keys as a zip file.
+### ⚠️ WARNING: Claude Desktop Not Supported
+
+**This skill does NOT work in Claude Desktop** due to network restrictions. Claude Desktop can only access a whitelist of domains, and `api.getpostman.com` is not included.
+
+**Error you'll see**: `Failed to resolve 'api.getpostman.com'` (DNS resolution error)
+
+**Use these alternatives instead**:
+- ✅ **Claude API** with code execution (recommended)
+- ✅ **Local Python scripts** (run directly on your machine)
+
+### For Reference Only (Does Not Work in Claude Desktop)
+
+If you want to package the skill anyway (for potential future use if the network allowlist changes), here's how:
 
 ### Quick Start Workflow
 

@@ -125,6 +125,10 @@ class PostmanClient:
         kwargs['headers'] = self.config.headers
         kwargs['timeout'] = self.config.timeout
 
+        # Apply proxy settings (default: bypass proxy to avoid 403 Forbidden errors)
+        if hasattr(self.config, 'proxies'):
+            kwargs['proxies'] = self.config.proxies
+
         try:
             # Use retry handler
             response = self.retry_handler.execute(

@@ -275,11 +275,48 @@ class NetworkError(PostmanAPIError):
             message = "Failed to connect to Postman API."
 
             if original_error:
-                message += f"\n\nOriginal error: {str(original_error)}"
+                error_str = str(original_error)
+                message += f"\n\nOriginal error: {error_str}"
+
+                # Detect DNS resolution errors (Claude Desktop network allowlist)
+                if "NameResolutionError" in error_str or "Failed to resolve" in error_str or "Temporary failure in name resolution" in error_str:
+                    message += (
+                        "\n\n⚠️  DNS RESOLUTION ERROR - NETWORK RESTRICTION DETECTED"
+                        "\n\n**This skill cannot run in Claude Desktop** due to network security restrictions."
+                        "\n\nClaude Desktop only allows connections to these domains:"
+                        "\n- api.anthropic.com"
+                        "\n- github.com / pypi.org / npmjs.com"
+                        "\n- archive.ubuntu.com / security.ubuntu.com"
+                        "\n\n'api.getpostman.com' is NOT in the allowlist."
+                        "\n\nSOLUTIONS:"
+                        "\n1. Use the Claude API with code execution (fully supported)"
+                        "\n2. Run the scripts directly on your local machine:"
+                        "\n   python scripts/list_collections.py"
+                        "\n3. Contact Anthropic to request adding api.getpostman.com to the allowlist"
+                        "\n\nSee SKILL.md for details on environment compatibility."
+                    )
+                    return super().__init__(message)
+
+                # Detect proxy-related errors
+                if "ProxyError" in error_str or "Tunnel connection failed" in error_str or "403 Forbidden" in error_str:
+                    message += (
+                        "\n\n⚠️  PROXY ERROR DETECTED"
+                        "\n\nThe connection is being blocked by a proxy server."
+                        "\n\nSOLUTION: The skill now bypasses proxies by default."
+                        "\n\nIf you're still seeing this error:"
+                        "\n1. Ensure you have the latest version of the skill"
+                        "\n2. The .env file should NOT contain POSTMAN_USE_PROXY=true"
+                        "\n3. If in a corporate environment, you may need to:"
+                        "\n   - Disable Claude Desktop's proxy settings"
+                        "\n   - Or configure your proxy to allow api.getpostman.com"
+                        "\n   - Or use a direct internet connection"
+                    )
+                    return super().__init__(message)
 
             message += (
                 "\n\nPossible causes:\n"
                 "- No internet connection\n"
+                "- Proxy server blocking requests (see proxy error above)\n"
                 "- Firewall blocking requests\n"
                 "- Postman API is down (check https://status.postman.com)\n"
                 "- DNS resolution issues"

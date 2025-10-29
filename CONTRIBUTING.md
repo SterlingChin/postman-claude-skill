@@ -184,19 +184,27 @@ cd postman-skill
 ```
 
 This script:
+- **Includes** your `.env` file with API keys (required for runtime)
 - Excludes deep directories (`venv/`, `.git/`, etc.)
 - Removes unnecessary files (`.DS_Store`, `__pycache__/`, etc.)
-- Excludes secrets (`.env` files)
 - Creates a clean zip in the parent directory
 
-### What Gets Excluded
+### What Gets Included vs Excluded
 
-The `.skillignore` file documents all exclusion patterns:
+The `.skillignore` file documents all exclusion patterns.
 
+**INCLUDED in the package:**
+```
+.env               # Your API keys (REQUIRED for the skill to work!)
+*.py               # All Python scripts and workflows
+*.md               # Documentation files
+```
+
+**EXCLUDED from the package:**
 ```
 venv/              # Python virtual environment (10+ folders deep)
 .git/              # Git repository metadata
-.env               # Environment variables (contains secrets)
+.env.example       # Template file (not needed at runtime)
 __pycache__/       # Python cache files
 .claude/           # Claude Desktop metadata
 *.pyc              # Compiled Python files
@@ -205,6 +213,10 @@ __pycache__/       # Python cache files
 .idea/             # IDE settings
 dist/, build/      # Build artifacts
 ```
+
+**Important:** The `.env` file is:
+- ❌ Excluded from git (in `.gitignore`) - for security
+- ✅ Included in the skill package (in the zip) - for functionality
 
 ### Why This Matters
 
@@ -258,11 +270,22 @@ zip -r ../postman-skill.zip . \
   -x "*.DS_Store" \
   -x "*.pyc" \
   -x "*__pycache__/*" \
-  -x ".env" \
-  -x ".env.*" \
+  -x ".env.example" \
   -x ".claude/*" \
   # ... (see package_skill.sh for complete list)
 ```
+
+**IMPORTANT:** Note that `.env` is **NOT** in the exclusion list - it must be included!
+
+### Before Packaging Checklist
+
+Before creating a package for distribution:
+
+- [ ] You have created a `.env` file from `.env.example`
+- [ ] Your `.env` file contains valid API keys (not placeholder values)
+- [ ] You've tested the skill locally with your `.env` file
+- [ ] You understand the `.env` file will be in the zip (don't share publicly)
+- [ ] The packaging script completes without errors
 
 ## Project Structure
 

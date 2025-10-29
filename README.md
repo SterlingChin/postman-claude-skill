@@ -115,22 +115,68 @@ print(response.content)
 
 ## Packaging for Claude Desktop
 
-If you're using Claude Desktop (not the API), you need to package the skill as a zip file. Claude Desktop has a **10-folder depth limit** for zip files, so you cannot simply zip the entire directory.
+If you're using Claude Desktop (not the API), you need to package the skill with your API keys as a zip file.
 
-### Automated Packaging (Recommended)
+### Quick Start Workflow
 
-Use the provided packaging script:
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd postman-skill
+   ```
 
-```bash
-cd postman-skill
-./package_skill.sh
-```
+2. **Set up your API key**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your POSTMAN_API_KEY
+   ```
 
-This will create `postman-skill.zip` in the parent directory, ready to install in Claude Desktop.
+3. **Package the skill**
+   ```bash
+   ./package_skill.sh
+   ```
 
-### Manual Packaging
+4. **Install in Claude Desktop**
+   - Open Claude Desktop
+   - Go to Settings > Skills
+   - Click "Install Skill"
+   - Select `postman-skill.zip` from the parent directory
 
-If you need to create the zip manually:
+### Why Packaging is Required
+
+Claude Desktop has a **10-folder depth limit** for zip files. Directories like `venv/` (Python virtual environment) can be 10+ folders deep and must be excluded.
+
+The packaging script:
+- ✅ **Includes** your `.env` file with API keys (needed at runtime)
+- ❌ **Excludes** deep directories (`venv/`, `.git/`)
+- ❌ **Excludes** unnecessary files (`.DS_Store`, `__pycache__/`)
+
+### What Gets Included vs Excluded
+
+**INCLUDED in the package:**
+- ✅ **.env** - Your API keys (required for the skill to work)
+- ✅ All Python scripts and workflows
+- ✅ Documentation and examples
+
+**EXCLUDED from the package:**
+- ❌ **venv/** - Python virtual environment (10+ folders deep)
+- ❌ **.git/** - Git repository metadata
+- ❌ **.env.example** - Template file (not needed at runtime)
+- ❌ **__pycache__/** - Python cache files
+- ❌ **IDE files** - .vscode/, .idea/, etc.
+
+### Important: .env File Handling
+
+The `.env` file has different rules for git vs packaging:
+
+| Context | .env Status | Why |
+|---------|-------------|-----|
+| **Git repository** | ❌ Excluded (in `.gitignore`) | Security: Never commit API keys |
+| **Skill package** | ✅ Included (in zip) | Required: Claude needs your API keys at runtime |
+
+### Manual Packaging (Not Recommended)
+
+If you need to package manually:
 
 ```bash
 cd postman-skill
@@ -140,27 +186,11 @@ zip -r ../postman-skill.zip . \
   -x "*.DS_Store" \
   -x "*.pyc" \
   -x "*__pycache__/*" \
-  -x ".env" \
+  -x ".env.example" \
   -x ".claude/*"
 ```
 
-### What Gets Excluded (and Why)
-
-The `.skillignore` file documents all excluded patterns:
-
-- **venv/** - Python virtual environment (10+ folders deep)
-- **.git/** - Git repository metadata (not needed at runtime)
-- **.env** - Contains secrets (never include in packages)
-- **__pycache__/** - Python cache files (regenerated automatically)
-- **IDE files** - .vscode/, .idea/, etc.
-
-### Installing in Claude Desktop
-
-1. Open Claude Desktop
-2. Go to Settings > Skills
-3. Click "Install Skill"
-4. Select the `postman-skill.zip` file
-5. Configure your `POSTMAN_API_KEY` in the skill settings
+Note: `.env` is **not** in the exclusion list - it must be included!
 
 ## What's Included in This POC
 

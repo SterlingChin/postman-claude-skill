@@ -26,10 +26,10 @@ __pycache__/
 dist/
 build/
 
-# Environment variables (contains secrets)
-.env
-*.env
-!.env.example
+# Environment template (IMPORTANT: .env itself IS included in the package!)
+# The .env file contains your API keys and MUST be included in the zip for Claude Desktop
+# It's excluded from git (via .gitignore) but included in the skill package
+.env.example
 
 # IDE files
 .vscode/

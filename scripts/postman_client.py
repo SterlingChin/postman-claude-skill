@@ -125,7 +125,7 @@ class PostmanClient:
         url = f"{self.config.base_url}{endpoint}"
 
         # Build curl command
-        curl_cmd = ['curl', '-s', '-k', '-i', '--noproxy', '*']  # silent, skip cert verification, include headers, bypass proxy
+        curl_cmd = ['curl', '-s', '-k', '-i']  # silent, skip cert verification, include headers
 
         # Add HTTP method for non-GET requests
         if method.upper() != 'GET':
@@ -151,22 +151,21 @@ class PostmanClient:
         def execute_curl():
             """Execute curl command and return parsed response."""
             try:
-                # Create clean environment without proxy settings to avoid DNS issues
+                # Use environment as-is - the proxy is configured correctly
+                # and removing it breaks DNS resolution
                 env = os.environ.copy()
-                # Remove proxy environment variables that might cause issues
-                for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']:
-                    env.pop(key, None)
 
                 # Debug: print curl command if POSTMAN_DEBUG is set
                 if os.getenv('POSTMAN_DEBUG'):
                     print(f"DEBUG: Executing curl command: {' '.join(curl_cmd[:10])}... {url}", file=sys.stderr)
+                    print(f"DEBUG: Using proxy: {env.get('https_proxy', 'none')}", file=sys.stderr)
 
                 result = subprocess.run(
                     curl_cmd,
                     capture_output=True,
                     text=True,
                     timeout=timeout + 5,  # Add buffer to subprocess timeout
-                    env=env  # Use clean environment
+                    env=env  # Use environment with proxy intact
                 )
 
                 if result.returncode != 0:
@@ -193,9 +192,26 @@ class PostmanClient:
 
                 headers_text, body = parts[0], parts[1]
 
+                # Check if body contains another HTTP response (common with proxies/HTTP2)
+                if body.strip().startswith('HTTP/'):
+                    # The body is actually another HTTP response - parse it instead
+                    nested_parts = body.split('\n\n', 1)
+                    if len(nested_parts) >= 2:
+                        headers_text = nested_parts[0]
+                        body = nested_parts[1] if len(nested_parts) > 1 else ""
+
+                # Debug: print response details if POSTMAN_DEBUG is set
+                if os.getenv('POSTMAN_DEBUG'):
+                    print(f"DEBUG: Headers (first 200 chars): {headers_text[:200]}", file=sys.stderr)
+                    print(f"DEBUG: Response body length: {len(body)}", file=sys.stderr)
+                    print(f"DEBUG: Response body (first 200 chars): {body[:200]}", file=sys.stderr)
+
                 # Extract status code from headers
                 status_line = headers_text.split('\n')[0]
-                status_code = int(status_line.split()[1])
+                status_parts = status_line.split()
+                if len(status_parts) < 2:
+                    raise NetworkError(message=f"Invalid HTTP status line: {status_line}")
+                status_code = int(status_parts[1])
 
                 # Parse response headers
                 response_headers = {}

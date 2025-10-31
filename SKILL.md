@@ -34,43 +34,41 @@ python scripts/validate_setup.py
 ```
 This provides immediate diagnostics and context before proceeding with the user's request.
 
-## ⚠️ IMPORTANT: Claude Desktop Network Limitation
+## ✅ Network Compatibility
 
-**This skill has limited functionality in Claude Desktop** due to network security restrictions.
+This skill works across multiple Claude environments with proper proxy configuration.
 
 ### Where This Skill Works
 
 | Environment | Status | Notes |
 |------------|--------|-------|
+| **Claude Web Interface** | ✅ **Fully Supported** | Works with configured proxy |
 | **Claude API** (Code Execution) | ✅ **Fully Supported** | No network restrictions |
 | **Local Python Scripts** | ✅ **Fully Supported** | Direct execution on your machine |
-| **Claude Desktop** | ❌ **Not Supported** | `api.getpostman.com` not in network allowlist |
+| **Claude Desktop** | ⚠️ **Limited** | Requires `api.getpostman.com` in network allowlist |
 
-### Claude Desktop Network Allowlist
+### Proxy Configuration
 
-Claude Desktop can only access these domains:
-- api.anthropic.com
-- github.com
-- pypi.org / pythonhosted.org
-- npmjs.com / registry.npmjs.org
-- archive.ubuntu.com / security.ubuntu.com
-
-**`api.getpostman.com` is NOT in this list**, which means the skill cannot make API calls to Postman from Claude Desktop.
+The skill is designed to work with proxy environments:
+- **Keeps proxy environment variables intact** for proper DNS resolution
+- **Handles nested HTTP responses** from proxy servers
+- **Supports HTTP/2 responses** through proxies
+- **Debug mode available** with `POSTMAN_DEBUG=1` environment variable
 
 ### How to Use This Skill
 
-**Option 1: Claude API with Code Execution (Recommended)**
+**Option 1: Claude Web Interface (Recommended)**
+Use the skill directly in Claude web interface. The proxy is pre-configured and handles all network requests automatically.
+
+**Option 2: Claude API with Code Execution**
 Use the skill through the Anthropic API with code execution enabled. This has no network restrictions.
 
-**Option 2: Local Python Scripts**
+**Option 3: Local Python Scripts**
 Run the scripts directly on your machine:
 ```bash
 python scripts/list_collections.py
 python scripts/manage_collections.py --list
 ```
-
-**Option 3: Request Network Access (Advanced)**
-Contact Anthropic support to request `api.getpostman.com` be added to Claude Desktop's network allowlist (no guarantee this will be approved).
 
 ## Overview
 

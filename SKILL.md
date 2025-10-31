@@ -8,6 +8,32 @@ description: API lifecycle management through Postman. Discover collections, run
 **Version**: 1.1.0 (Phase 1 - Core API Compatibility)
 **API Support**: Postman v10+ (with v9 graceful degradation)
 
+## 🚀 Quick Start
+
+**When you first use this skill, Claude will automatically:**
+1. ✅ Validate your API key and connection
+2. 📁 Check your workspace configuration
+3. 📊 Count your collections and resources
+4. 💡 Suggest next steps if setup is incomplete
+
+**First time setup validation:**
+```bash
+# Claude will run this automatically on first use
+python scripts/validate_setup.py
+```
+
+**Common first questions that work immediately:**
+- "How many collections do I have?" - Lists all collections in your workspace
+- "Show me my workspaces" - Displays available workspaces
+- "Validate my setup" - Runs comprehensive diagnostics
+- "Create a new collection called 'Test API'" - Starts building immediately
+
+**🤖 Note for Claude**: On first use of this skill in a conversation, ALWAYS run:
+```bash
+python scripts/validate_setup.py
+```
+This provides immediate diagnostics and context before proceeding with the user's request.
+
 ## ⚠️ IMPORTANT: Claude Desktop Network Limitation
 
 **This skill has limited functionality in Claude Desktop** due to network security restrictions.
@@ -253,8 +279,10 @@ postman-skill/
 │       └── view_documentation.md # Documentation access workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
-│   ├── postman_client.py         # API client with CRUD operations
-│   ├── list_collections.py       # Collection discovery script
+│   ├── postman_client.py         # API client with CRUD operations (now uses curl)
+│   ├── validate_setup.py         # 🆕 Comprehensive setup validation & diagnostics
+│   ├── list_collections.py       # Collection discovery script (enhanced with context)
+│   ├── list_workspaces.py        # 🆕 Workspace discovery and navigation
 │   ├── manage_collections.py     # Collection management CLI
 │   ├── manage_environments.py    # Environment management CLI
 │   ├── run_collection.py         # Newman test execution wrapper
@@ -450,11 +478,27 @@ The client automatically detects your API version and will show warnings if v10+
 
 ## Next Steps
 
-After loading this skill:
-1. Check if `POSTMAN_API_KEY` is set
-2. If not, guide user to get their key from Postman
-3. Use `list_collections.py` to discover available resources
+**After loading this skill (Claude Instructions):**
+1. **ALWAYS run setup validation first**: `python scripts/validate_setup.py`
+   - This provides immediate diagnostics and workspace context
+   - Identifies configuration issues proactively
+   - Shows collection counts and helpful next steps
+2. If validation fails:
+   - Check if `POSTMAN_API_KEY` is set in `.env` file
+   - Guide user to get their key from https://web.postman.co/settings/me/api-keys
+3. For "How many collections?" queries:
+   - Run `python scripts/list_collections.py`
+   - If 0 collections found, suggest:
+     - List workspaces: `python scripts/list_workspaces.py`
+     - Create new collection
+     - Switch workspace in `.env` file
 4. Execute specific workflows based on user requests
+
+**Helpful diagnostic commands:**
+- Setup validation: `python scripts/validate_setup.py`
+- List collections: `python scripts/list_collections.py`
+- List workspaces: `python scripts/list_workspaces.py`
+- List all resources: `python scripts/list_collections.py --all`
 
 ## Related Resources
 

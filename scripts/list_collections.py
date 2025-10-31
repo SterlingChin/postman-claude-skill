@@ -100,9 +100,28 @@ def main():
 
         else:
             # Default: list collections
+
+            # Show workspace context if configured
+            if config.workspace_id:
+                try:
+                    workspace = client.get_workspace(config.workspace_id)
+                    workspace_name = workspace.get('name', 'Unknown')
+                    print(f"📁 Workspace: {workspace_name}\n")
+                except:
+                    pass  # Continue even if workspace fetch fails
+
             print("Fetching collections...")
             collections = client.list_collections()
-            print(format_collections_list(collections))
+
+            if len(collections) == 0:
+                print("\n📭 No collections found in this workspace.")
+                print("\n💡 Quick actions:")
+                if config.workspace_id:
+                    print("   • List workspaces: python scripts/list_workspaces.py")
+                    print("   • Change workspace: Edit POSTMAN_WORKSPACE_ID in .env")
+                print("   • Run setup validation: python scripts/validate_setup.py")
+            else:
+                print(format_collections_list(collections))
 
     except Exception as e:
         print(format_error(e, "listing workspace resources"), file=sys.stderr)

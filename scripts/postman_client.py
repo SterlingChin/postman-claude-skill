@@ -125,7 +125,7 @@ class PostmanClient:
         url = f"{self.config.base_url}{endpoint}"
 
         # Build curl command
-        curl_cmd = ['curl', '-s', '-k', '-i']  # silent, skip cert verification, include headers
+        curl_cmd = ['curl', '-s', '-k', '-i', '--noproxy', '*']  # silent, skip cert verification, include headers, bypass proxy
 
         # Add HTTP method for non-GET requests
         if method.upper() != 'GET':
@@ -151,16 +151,32 @@ class PostmanClient:
         def execute_curl():
             """Execute curl command and return parsed response."""
             try:
+                # Create clean environment without proxy settings to avoid DNS issues
+                env = os.environ.copy()
+                # Remove proxy environment variables that might cause issues
+                for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy']:
+                    env.pop(key, None)
+
+                # Debug: print curl command if POSTMAN_DEBUG is set
+                if os.getenv('POSTMAN_DEBUG'):
+                    print(f"DEBUG: Executing curl command: {' '.join(curl_cmd[:10])}... {url}", file=sys.stderr)
+
                 result = subprocess.run(
                     curl_cmd,
                     capture_output=True,
                     text=True,
-                    timeout=timeout + 5  # Add buffer to subprocess timeout
+                    timeout=timeout + 5,  # Add buffer to subprocess timeout
+                    env=env  # Use clean environment
                 )
 
                 if result.returncode != 0:
-                    error_msg = result.stderr or result.stdout or "Curl command failed"
-                    raise NetworkError(message=f"Curl failed: {error_msg}")
+                    stderr = result.stderr.strip() if result.stderr else ""
+                    stdout = result.stdout.strip() if result.stdout else ""
+                    error_msg = stderr or stdout or "Unknown curl error"
+                    raise NetworkError(
+                        message=f"Curl failed (exit code {result.returncode}): {error_msg}\n"
+                                f"Command: {' '.join(curl_cmd[:4])}... {url}"
+                    )
 
                 # Parse response (headers + body)
                 output = result.stdout
@@ -203,7 +219,19 @@ class PostmanClient:
             except subprocess.TimeoutExpired as e:
                 raise TimeoutError(timeout_seconds=timeout) from e
             except json.JSONDecodeError as e:
-                raise NetworkError(message=f"Failed to parse JSON response: {str(e)}") from e
+                # Better error for empty/invalid responses
+                error_msg = (
+                    "Received invalid JSON response from Postman API.\n"
+                    "This usually means:\n"
+                    "  • The endpoint returned no data or empty response\n"
+                    "  • Network connectivity issue\n"
+                    "  • The API endpoint might not exist\n"
+                    f"\nTried to access: {url}\n"
+                    "\n🔧 Troubleshooting:\n"
+                    "  • Run: python scripts/validate_setup.py\n"
+                    "  • Check Postman API status: https://status.postman.com/"
+                )
+                raise NetworkError(message=error_msg) from e
             except Exception as e:
                 if isinstance(e, (NetworkError, TimeoutError)):
                     raise
@@ -251,7 +279,16 @@ class PostmanClient:
             endpoint = "/collections"
 
         response = self._make_request('GET', endpoint)
-        return response.get('collections', [])
+        collections = response.get('collections', [])
+
+        # Provide helpful context for empty results (only in debug mode)
+        if len(collections) == 0 and os.getenv('POSTMAN_DEBUG'):
+            if workspace_id:
+                import sys
+                print(f"ℹ️  No collections found in workspace {workspace_id}", file=sys.stderr)
+                print("   💡 Run 'python scripts/list_workspaces.py' to see other workspaces", file=sys.stderr)
+
+        return collections
 
     def get_collection(self, collection_uid):
         """

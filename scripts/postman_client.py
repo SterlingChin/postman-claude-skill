@@ -5,11 +5,12 @@ Postman API client with retry logic and error handling.
 import sys
 import os
 import warnings
+import subprocess
+import json
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-import requests
 from scripts.config import PostmanConfig
 from utils.retry_handler import RetryHandler
 from utils.exceptions import (
@@ -105,7 +106,7 @@ class PostmanClient:
         Args:
             method: HTTP method (GET, POST, PUT, DELETE, PATCH)
             endpoint: API endpoint path (without base URL)
-            **kwargs: Additional arguments for requests
+            **kwargs: Additional arguments (json, headers, etc.)
 
         Returns:
             Parsed JSON response
@@ -122,25 +123,100 @@ class PostmanClient:
             PostmanAPIError: For other API errors
         """
         url = f"{self.config.base_url}{endpoint}"
-        kwargs['headers'] = self.config.headers
-        kwargs['timeout'] = self.config.timeout
 
-        # Apply proxy settings (default: bypass proxy to avoid 403 Forbidden errors)
-        if hasattr(self.config, 'proxies'):
-            kwargs['proxies'] = self.config.proxies
+        # Build curl command
+        curl_cmd = ['curl', '-s', '-k', '-i']  # silent, skip cert verification, include headers
+
+        # Add HTTP method for non-GET requests
+        if method.upper() != 'GET':
+            curl_cmd.extend(['-X', method.upper()])
+
+        # Add headers
+        for key, value in self.config.headers.items():
+            curl_cmd.extend(['-H', f"{key}: {value}"])
+
+        # Add JSON body if provided
+        if 'json' in kwargs and kwargs['json']:
+            json_data = json.dumps(kwargs['json'])
+            curl_cmd.extend(['-d', json_data])
+            curl_cmd.extend(['-H', 'Content-Type: application/json'])
+
+        # Add timeout
+        timeout = kwargs.get('timeout', self.config.timeout)
+        curl_cmd.extend(['--max-time', str(timeout)])
+
+        # Add URL
+        curl_cmd.append(url)
+
+        def execute_curl():
+            """Execute curl command and return parsed response."""
+            try:
+                result = subprocess.run(
+                    curl_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout + 5  # Add buffer to subprocess timeout
+                )
+
+                if result.returncode != 0:
+                    error_msg = result.stderr or result.stdout or "Curl command failed"
+                    raise NetworkError(message=f"Curl failed: {error_msg}")
+
+                # Parse response (headers + body)
+                output = result.stdout
+                if not output:
+                    raise NetworkError(message="Empty response from curl")
+
+                # Split headers and body
+                parts = output.split('\r\n\r\n', 1)
+                if len(parts) < 2:
+                    parts = output.split('\n\n', 1)
+
+                if len(parts) < 2:
+                    raise NetworkError(message="Invalid response format from curl")
+
+                headers_text, body = parts[0], parts[1]
+
+                # Extract status code from headers
+                status_line = headers_text.split('\n')[0]
+                status_code = int(status_line.split()[1])
+
+                # Parse response headers
+                response_headers = {}
+                for line in headers_text.split('\n')[1:]:
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        response_headers[key.strip()] = value.strip()
+
+                # Create a mock response object for compatibility
+                class MockResponse:
+                    def __init__(self, status_code, headers, body):
+                        self.status_code = status_code
+                        self.headers = headers
+                        self._body = body
+
+                    def json(self):
+                        return json.loads(self._body) if self._body else {}
+
+                return MockResponse(status_code, response_headers, body)
+
+            except subprocess.TimeoutExpired as e:
+                raise TimeoutError(timeout_seconds=timeout) from e
+            except json.JSONDecodeError as e:
+                raise NetworkError(message=f"Failed to parse JSON response: {str(e)}") from e
+            except Exception as e:
+                if isinstance(e, (NetworkError, TimeoutError)):
+                    raise
+                raise NetworkError(message=f"Request failed: {str(e)}", original_error=e) from e
 
         try:
             # Use retry handler
-            response = self.retry_handler.execute(
-                lambda: requests.request(method, url, **kwargs)
-            )
-        except requests.exceptions.Timeout as e:
-            raise TimeoutError(
-                timeout_seconds=self.config.timeout
-            ) from e
-        except requests.exceptions.ConnectionError as e:
-            raise NetworkError(original_error=e) from e
-        except requests.exceptions.RequestException as e:
+            response = self.retry_handler.execute(execute_curl)
+        except TimeoutError:
+            raise
+        except NetworkError:
+            raise
+        except Exception as e:
             raise NetworkError(
                 message=f"Request failed: {str(e)}",
                 original_error=e

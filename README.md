@@ -21,6 +21,7 @@ This is an **Agent Skill** - a structured way to give Claude new capabilities th
 ### Workflows
 
 - **list_collections.md**: Step-by-step guide for discovering workspace resources
+- **manage_specs.md**: 🆕 Create and manage API specifications in Spec Hub (OpenAPI 3.0, AsyncAPI 2.0)
 - **validate_schema.md**: Validate API schemas against OpenAPI/Swagger standards
 - **version_comparison.md**: Compare API versions and identify changes
 - **manage_collections.md**: Create, update, delete, and duplicate collections
@@ -40,10 +41,13 @@ This is an **Agent Skill** - a structured way to give Claude new capabilities th
 - Error handling with retry logic
 
 #### ✅ Design Phase
+- 🆕 **Spec Hub**: Create and manage API specifications (OpenAPI 3.0, AsyncAPI 2.0)
+- 🆕 **Multi-File Specs**: Support for modular specifications with separate schema files
+- 🆕 **Bidirectional Generation**: Generate collections from specs or specs from collections
 - Validate API schemas (OpenAPI, Swagger, GraphQL)
 - Get API versions and compare changes
 - Manage API definitions and versions
-- Create, update, and delete APIs
+- Create, update, and delete APIs (legacy - use Spec Hub instead)
 
 #### ✅ Build Phase
 - Create new collections and environments
@@ -257,6 +261,7 @@ postman-skill/
 │   │   ├── list_collections.md   # Discovery workflow
 │   │   └── run_collection.md     # Test execution workflow
 │   ├── design/
+│   │   ├── manage_specs.md       # 🆕 Spec Hub management workflow
 │   │   ├── validate_schema.md    # Schema validation workflow
 │   │   └── version_comparison.md # API version comparison workflow
 │   ├── build/
@@ -272,10 +277,12 @@ postman-skill/
 │       └── view_documentation.md # Documentation access workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
-│   ├── postman_client.py         # API client with CRUD operations
+│   ├── postman_client.py         # API client with CRUD + Spec Hub operations
 │   ├── list_collections.py       # Collection discovery script
 │   ├── manage_collections.py     # Collection management CLI
 │   ├── manage_environments.py    # Environment management CLI
+│   ├── manage_pet_store_spec.py  # 🆕 Spec Hub example script
+│   ├── manage_pet_store_api.py   # Legacy API example (deprecated)
 │   ├── run_collection.py         # Newman test execution wrapper
 │   └── manage_monitors.py        # Monitor management CLI
 ├── utils/

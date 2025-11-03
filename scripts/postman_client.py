@@ -131,15 +131,18 @@ class PostmanClient:
         if method.upper() != 'GET':
             curl_cmd.extend(['-X', method.upper()])
 
-        # Add headers
-        for key, value in self.config.headers.items():
-            curl_cmd.extend(['-H', f"{key}: {value}"])
-
-        # Add JSON body if provided
-        if 'json' in kwargs and kwargs['json']:
+        # Add JSON body if provided (before headers to avoid duplicates)
+        has_json_body = 'json' in kwargs and kwargs['json']
+        if has_json_body:
             json_data = json.dumps(kwargs['json'])
             curl_cmd.extend(['-d', json_data])
             curl_cmd.extend(['-H', 'Content-Type: application/json'])
+
+        # Add headers (skip Content-Type if we already added it for JSON)
+        for key, value in self.config.headers.items():
+            if key.lower() == 'content-type' and has_json_body:
+                continue  # Skip duplicate Content-Type
+            curl_cmd.extend(['-H', f"{key}: {value}"])
 
         # Add timeout
         timeout = kwargs.get('timeout', self.config.timeout)
@@ -1015,6 +1018,17 @@ class PostmanClient:
         """
         Create a new API.
 
+        **DEPRECATED**: This method uses the legacy API creation approach.
+        Please use create_spec() instead, which creates specifications in Postman's Spec Hub.
+
+        The Spec Hub is the recommended way to manage API specifications as it provides:
+        - Direct specification management (OpenAPI 3.0, AsyncAPI 2.0)
+        - Multi-file specification support
+        - Bidirectional collection generation
+        - Better version control integration
+
+        See: create_spec() for the new approach
+
         Args:
             api_data: Dictionary containing API configuration:
                 - name: API name
@@ -1025,6 +1039,15 @@ class PostmanClient:
         Returns:
             Created API object
         """
+        # Warn users about deprecation
+        warnings.warn(
+            "create_api() is deprecated and will be removed in a future version. "
+            "Please use create_spec() to create specifications in Postman's Spec Hub instead. "
+            "See: https://learning.postman.com/docs/design-apis/specifications/overview/",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         workspace_id = workspace_id or self.config.workspace_id
 
         if workspace_id:
@@ -1062,6 +1085,377 @@ class PostmanClient:
         """
         endpoint = f"/apis/{api_id}"
         response = self._make_request('DELETE', endpoint)
+        return response
+
+    # Spec Hub Operations (Replaces legacy API creation)
+
+    def create_spec(self, spec_data, workspace_id=None):
+        """
+        Create a new API specification in Postman's Spec Hub.
+
+        **This is the recommended way to create API specifications.**
+        The legacy create_api() method is deprecated in favor of Spec Hub.
+
+        Supports both single-file and multi-file specifications.
+        For OpenAPI 3.0 and AsyncAPI 2.0.
+
+        Args:
+            spec_data: Dictionary containing specification configuration:
+                - name: Spec name (required)
+                - description: Spec description (optional)
+                - files: List of file objects (required):
+                    - path: File path (e.g., "openapi.yaml")
+                    - content: File content as string (JSON or YAML)
+                    - root: Boolean, mark as root file (optional, default: first file)
+            workspace_id: Workspace ID (uses config default if not provided)
+
+        Returns:
+            Created spec object with spec ID and metadata
+
+        Example:
+            >>> # Single-file OpenAPI 3.0 spec
+            >>> client.create_spec({
+            ...     "name": "Pet Store API",
+            ...     "description": "A simple pet store API",
+            ...     "files": [{
+            ...         "path": "openapi.yaml",
+            ...         "content": yaml_or_json_string,
+            ...         "root": True
+            ...     }]
+            ... })
+            >>>
+            >>> # Multi-file spec with separate schemas
+            >>> client.create_spec({
+            ...     "name": "Complex API",
+            ...     "files": [
+            ...         {"path": "openapi.yaml", "content": main_spec, "root": True},
+            ...         {"path": "schemas/pet.json", "content": pet_schema},
+            ...         {"path": "schemas/user.json", "content": user_schema}
+            ...     ]
+            ... })
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        if not workspace_id:
+            raise ValueError("workspace_id is required to create a spec. Set POSTMAN_WORKSPACE_ID in .env or pass workspace_id parameter.")
+
+        endpoint = f"/specs?workspaceId={workspace_id}"
+
+        # Build the request payload
+        payload = {
+            "name": spec_data["name"],
+            "type": spec_data.get("type", "openapi:3")  # Default to OpenAPI 3.0
+        }
+
+        if "description" in spec_data:
+            payload["description"] = spec_data["description"]
+
+        # Add files
+        files = spec_data.get("files", [])
+        if not files:
+            raise ValueError("At least one file must be provided in spec_data['files']")
+
+        payload["files"] = []
+        for i, file_obj in enumerate(files):
+            file_entry = {
+                "path": file_obj["path"],
+                "content": file_obj["content"]
+            }
+            # Note: root is handled automatically by API based on type field
+            payload["files"].append(file_entry)
+
+        response = self._make_request('POST', endpoint, json=payload)
+        return response.get('data', {})
+
+    def list_specs(self, workspace_id=None, limit=10, offset=0):
+        """
+        List all API specifications in a workspace.
+
+        Args:
+            workspace_id: Workspace ID (uses config default if not provided)
+            limit: Maximum number of specs to return (default: 10)
+            offset: Number of specs to skip (default: 0)
+
+        Returns:
+            List of spec objects
+
+        Example:
+            >>> specs = client.list_specs()
+            >>> for spec in specs:
+            ...     print(f"{spec['name']} - {spec['id']}")
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        endpoint = "/specs"
+        params = []
+
+        if workspace_id:
+            params.append(f"workspaceId={workspace_id}")
+        if limit:
+            params.append(f"limit={limit}")
+        if offset:
+            params.append(f"offset={offset}")
+
+        if params:
+            endpoint += "?" + "&".join(params)
+
+        response = self._make_request('GET', endpoint)
+        return response.get('data', [])
+
+    def get_spec(self, spec_id):
+        """
+        Get detailed information about a specific API specification.
+
+        Args:
+            spec_id: Unique identifier for the spec
+
+        Returns:
+            Spec object with full details including files
+
+        Example:
+            >>> spec = client.get_spec("spec-12345")
+            >>> print(f"Spec: {spec['name']}")
+            >>> print(f"Files: {len(spec.get('files', []))}")
+        """
+        endpoint = f"/specs/{spec_id}"
+        response = self._make_request('GET', endpoint)
+        return response.get('data', {})
+
+    def update_spec(self, spec_id, spec_data):
+        """
+        Update an existing API specification's metadata.
+
+        Note: To update file contents, use update_spec_file() instead.
+
+        Args:
+            spec_id: Unique identifier for the spec
+            spec_data: Dictionary containing fields to update:
+                - name: New spec name (optional)
+                - description: New description (optional)
+
+        Returns:
+            Updated spec object
+
+        Example:
+            >>> client.update_spec("spec-12345", {
+            ...     "name": "Pet Store API v2",
+            ...     "description": "Updated description"
+            ... })
+        """
+        endpoint = f"/specs/{spec_id}"
+        response = self._make_request('PATCH', endpoint, json=spec_data)
+        return response.get('data', {})
+
+    def delete_spec(self, spec_id):
+        """
+        Delete an API specification from Spec Hub.
+
+        Args:
+            spec_id: Unique identifier for the spec
+
+        Returns:
+            Deletion confirmation
+
+        Example:
+            >>> client.delete_spec("spec-12345")
+        """
+        endpoint = f"/specs/{spec_id}"
+        response = self._make_request('DELETE', endpoint)
+        return response
+
+    def create_spec_file(self, spec_id, file_path, content, root=False):
+        """
+        Add a new file to an existing multi-file specification.
+
+        Args:
+            spec_id: Unique identifier for the spec
+            file_path: Path for the new file (e.g., "schemas/pet.json")
+            content: File content as string (JSON or YAML)
+            root: Boolean, mark as root file (default: False)
+
+        Returns:
+            Created file object
+
+        Example:
+            >>> # Add a new schema file
+            >>> client.create_spec_file(
+            ...     spec_id="spec-12345",
+            ...     file_path="schemas/order.json",
+            ...     content=order_schema_json
+            ... )
+        """
+        endpoint = f"/specs/{spec_id}/files"
+        payload = {
+            "path": file_path,
+            "content": content
+        }
+        if root:
+            payload["root"] = True
+
+        response = self._make_request('POST', endpoint, json=payload)
+        return response.get('data', {})
+
+    def update_spec_file(self, spec_id, file_path, content=None, root=None):
+        """
+        Update an existing file in a specification.
+
+        Note: You can update either content, root status, or both.
+
+        Args:
+            spec_id: Unique identifier for the spec
+            file_path: Path of the file to update
+            content: New file content (optional)
+            root: New root status (optional)
+
+        Returns:
+            Updated file object
+
+        Example:
+            >>> # Update file content
+            >>> client.update_spec_file(
+            ...     spec_id="spec-12345",
+            ...     file_path="openapi.yaml",
+            ...     content=updated_yaml_content
+            ... )
+            >>>
+            >>> # Change root file
+            >>> client.update_spec_file(
+            ...     spec_id="spec-12345",
+            ...     file_path="openapi.yaml",
+            ...     root=True
+            ... )
+        """
+        endpoint = f"/specs/{spec_id}/files/{file_path}"
+        payload = {}
+
+        if content is not None:
+            payload["content"] = content
+        if root is not None:
+            payload["root"] = root
+
+        if not payload:
+            raise ValueError("At least one of 'content' or 'root' must be provided")
+
+        response = self._make_request('PATCH', endpoint, json=payload)
+        return response.get('data', {})
+
+    def delete_spec_file(self, spec_id, file_path):
+        """
+        Delete a file from a multi-file specification.
+
+        Note: Cannot delete the root file if it's the only file.
+
+        Args:
+            spec_id: Unique identifier for the spec
+            file_path: Path of the file to delete
+
+        Returns:
+            Deletion confirmation
+
+        Example:
+            >>> client.delete_spec_file("spec-12345", "schemas/deprecated.json")
+        """
+        endpoint = f"/specs/{spec_id}/files/{file_path}"
+        response = self._make_request('DELETE', endpoint)
+        return response
+
+    def get_spec_files(self, spec_id):
+        """
+        List all files in a specification.
+
+        Args:
+            spec_id: Unique identifier for the spec
+
+        Returns:
+            List of file objects with paths and metadata
+
+        Example:
+            >>> files = client.get_spec_files("spec-12345")
+            >>> for file in files:
+            ...     print(f"{'[ROOT] ' if file.get('root') else ''}{file['path']}")
+        """
+        endpoint = f"/specs/{spec_id}/files"
+        response = self._make_request('GET', endpoint)
+        return response.get('data', [])
+
+    def generate_collection_from_spec(self, spec_id, collection_name=None):
+        """
+        Generate a Postman collection from an API specification.
+
+        Creates a collection with folders, requests, and examples based
+        on the spec's endpoints and operations.
+
+        Args:
+            spec_id: Unique identifier for the spec
+            collection_name: Name for the generated collection (optional)
+
+        Returns:
+            Generation task object with status and collection details
+
+        Example:
+            >>> result = client.generate_collection_from_spec("spec-12345")
+            >>> if result.get('status') == 'completed':
+            ...     collection_id = result['data']['collectionId']
+            ...     print(f"Collection created: {collection_id}")
+        """
+        endpoint = f"/specs/{spec_id}/generations/collection"
+        payload = {}
+
+        if collection_name:
+            payload["name"] = collection_name
+
+        response = self._make_request('POST', endpoint, json=payload if payload else None)
+        return response
+
+    def list_collections_from_spec(self, spec_id):
+        """
+        List all collections generated from a specification.
+
+        Args:
+            spec_id: Unique identifier for the spec
+
+        Returns:
+            List of collection objects generated from this spec
+
+        Example:
+            >>> collections = client.list_collections_from_spec("spec-12345")
+            >>> print(f"Found {len(collections)} collections generated from this spec")
+        """
+        endpoint = f"/specs/{spec_id}/generations/collection"
+        response = self._make_request('GET', endpoint)
+        return response.get('data', [])
+
+    def generate_spec_from_collection(self, collection_id, spec_name=None, workspace_id=None):
+        """
+        Generate an API specification from an existing Postman collection.
+
+        Reverse-engineers a spec from collection requests and responses.
+
+        Args:
+            collection_id: Collection UID to generate spec from
+            spec_name: Name for the generated spec (optional)
+            workspace_id: Workspace for the spec (uses config default if not provided)
+
+        Returns:
+            Generation task object with status and spec details
+
+        Example:
+            >>> result = client.generate_spec_from_collection("collection-12345")
+            >>> if result.get('status') == 'completed':
+            ...     spec_id = result['data']['specId']
+            ...     print(f"Spec created: {spec_id}")
+        """
+        workspace_id = workspace_id or self.config.workspace_id
+
+        endpoint = f"/collections/{collection_id}/generations/spec"
+        payload = {}
+
+        if spec_name:
+            payload["name"] = spec_name
+        if workspace_id:
+            payload["workspace"] = workspace_id
+
+        response = self._make_request('POST', endpoint, json=payload if payload else None)
         return response
 
     # Deploy Phase: Mock Server Operations

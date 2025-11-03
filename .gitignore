@@ -34,3 +34,4 @@ htmlcov/
 # Temp files
 /tmp/
 *.tmp
+docs/Postman API.postman_collection.json

@@ -9,27 +9,62 @@ A Claude Agent Skill that enables AI-powered interaction with the Postman API fo
 
 | Environment | Status | Notes |
 |------------|--------|-------|
-| **Claude API** (Code Execution) | ✅ Fully Supported | Recommended - no network restrictions |
+| **Claude Desktop** | ✅ Fully Supported | **Primary target** - requires network egress configuration |
+| **Claude API** (Code Execution) | ✅ Fully Supported | No network restrictions |
 | **Local Python Scripts** | ✅ Fully Supported | Run scripts directly on your machine |
-| **Claude Desktop** | ❌ Not Supported | `api.getpostman.com` not in network allowlist |
 
-**Claude Desktop cannot access `api.getpostman.com`** due to network security restrictions. Use the Claude API with code execution or run scripts locally instead.
+**This skill is designed for Claude Desktop** with proper network egress configuration to access `api.getpostman.com`.
 
 ## What is This?
 
 This is an **Agent Skill** - a structured way to give Claude new capabilities through organized instructions and executable code. Agent Skills use progressive disclosure: Claude loads only what it needs when it needs it, keeping context usage efficient.
 
+## 🔧 Required: Network Egress Configuration
+
+**Before using this skill in Claude Desktop**, you must enable network egress to allow access to Postman API endpoints.
+
+### Step 1: Enable Network Egress
+
+In Claude Desktop settings, enable **"Allow network egress"**:
+
+![Enable Network Egress](docs/Screenshot%202025-11-03%20at%208.35.41%20AM.png)
+
+### Step 2: Configure Domain Allowlist
+
+You have two options for domain access:
+
+**Option 1: Allow All Domains (Easiest)**
+- Set Domain allowlist to **"All domains"**
+- Claude can access all domains on the internet
+- This is the simplest configuration
+
+**Option 2: Allow Specific Postman Domains (More Restrictive)**
+- Set Domain allowlist to **"None"**
+- Add the following domains individually:
+  - `*.getpostman.com`
+  - `*.postman.com`
+  - `api.getpostman.com`
+  - `api.postman.com`
+
+![Configure Domain Allowlist](docs/Screenshot%202025-11-03%20at%208.36.51%20AM.png)
+
+**Recommendation**: Use "All domains" for the best experience, as it allows Claude to access any APIs you need.
+
 ## Quick Start
 
-### For Local Use (Recommended)
+### For Claude Desktop (Recommended)
 
-#### 1. Get Your Postman API Key
+#### 1. Configure Network Egress
+
+See the [Network Egress Configuration](#-required-network-egress-configuration) section above to enable network access.
+
+#### 2. Get Your Postman API Key
 
 1. Go to https://web.postman.co/settings/me/api-keys
 2. Click "Generate API Key"
 3. Copy the key (it starts with `PMAK-`)
 
-#### 2. Configure the Skill
+#### 3. Configure the Skill
 
 ```bash
 cd postman-skill
@@ -37,7 +72,33 @@ cp .env.example .env
 # Edit .env and add your POSTMAN_API_KEY
 ```
 
-#### 3. Test the Skill Locally
+#### 4. Package and Install in Claude Desktop
+
+```bash
+# Package the skill
+./package_skill.sh
+
+# Install in Claude Desktop:
+# - Open Claude Desktop
+# - Go to Settings > Skills
+# - Click "Install Skill"
+# - Select postman-skill.zip from the parent directory
+```
+
+#### 5. Test the Skill
+
+Ask Claude in Claude Desktop:
+```
+"List my Postman collections"
+"Show me my workspace resources"
+"Run validation on my setup"
+```
+
+### For Local Testing (Alternative)
+
+You can also test the scripts locally before installing in Claude Desktop:
+
+#### Test Commands
 
 ```bash
 # Test configuration and discover resources
@@ -68,11 +129,13 @@ python postman-skill/scripts/manage_monitors.py --list
 python postman-skill/scripts/manage_monitors.py --analyze <monitor-id>
 ```
 
-### For Claude API Use (Fully Supported)
+### For Claude API Use (Alternative)
 
-#### 4. Upload to Claude API (Agent Skills API)
+This section is for using the skill with the Claude API instead of Claude Desktop.
 
-**Note**: This is for the Claude API with code execution, which has no network restrictions and fully supports this skill.
+#### Upload to Claude API (Agent Skills API)
+
+**Note**: The Claude API with code execution has no network restrictions and supports this skill without additional configuration.
 
 Once you have an Anthropic API key with Skills beta access:
 
@@ -93,7 +156,7 @@ print(f"Created skill: {skill.id}")
 print(f"Latest version: {skill.latest_version}")
 ```
 
-### 5. Use in Claude API
+#### Use in Claude API
 
 ```python
 import anthropic
@@ -128,21 +191,11 @@ print(response.content)
 
 ## Packaging for Claude Desktop
 
-### ⚠️ WARNING: Claude Desktop Not Supported
+### ✅ Claude Desktop Fully Supported
 
-**This skill does NOT work in Claude Desktop** due to network restrictions. Claude Desktop can only access a whitelist of domains, and `api.getpostman.com` is not included.
+This skill is designed for Claude Desktop and works great with proper network egress configuration.
 
-**Error you'll see**: `Failed to resolve 'api.getpostman.com'` (DNS resolution error)
-
-**Use these alternatives instead**:
-- ✅ **Claude API** with code execution (recommended)
-- ✅ **Local Python scripts** (run directly on your machine)
-
-### For Reference Only (Does Not Work in Claude Desktop)
-
-If you want to package the skill anyway (for potential future use if the network allowlist changes), here's how:
-
-### Quick Start Workflow
+### Packaging Workflow
 
 1. **Clone the repository**
    ```bash

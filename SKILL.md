@@ -85,8 +85,12 @@ This skill gives Claude the ability to interact with the Postman API to manage t
 
 ## Capabilities
 
-- **Discover**: List collections, APIs, environments, and monitors in your workspace
-- **Design**: Validate API schemas, compare versions, and manage API definitions
+- **Discover**: List collections, APIs, specifications, environments, and monitors in your workspace
+- **Design**: Manage API specifications, validate schemas, compare versions, and define APIs
+  - 🆕 **Spec Hub**: Create and manage API specifications (OpenAPI 3.0, AsyncAPI 2.0)
+  - 🆕 **Multi-File Specs**: Support for modular specifications with separate schema files
+  - 🆕 **Bidirectional Generation**: Generate collections from specs or specs from collections
+  - Validate API schemas and compare versions
 - **Build**: Create, update, and delete collections and environments
   - 🆕 **Fork & Merge**: Git-like version control for collections (v10+)
   - 🆕 **Pull Requests**: Collaborative collection editing workflows (v10+)
@@ -102,14 +106,18 @@ This skill gives Claude the ability to interact with the Postman API to manage t
 ## When to Use This Skill
 
 Claude should use this skill when you:
-- Mention Postman, collections, or API testing
+- Mention Postman, collections, API specifications, or API testing
+- Want to create or manage API specifications (OpenAPI, AsyncAPI, Swagger)
+- Need to upload or import API specs to Postman
+- Want to generate collections from API specifications
+- Want to generate specifications from existing collections
 - Want to validate API schemas or compare versions
 - Want to create, update, or delete collections or environments
 - Need to duplicate or organize collections and environments
 - Ask to check authentication or security configuration
 - Ask to create mock servers for prototyping
 - Ask to run tests or check test results
-- Want to see what APIs/collections are available
+- Want to see what APIs/collections/specs are available
 - Need to create, manage, or analyze monitors
 - Ask about API uptime, monitoring, or observability
 - Want to check monitor status or run history
@@ -196,6 +204,19 @@ Validate API schemas against OpenAPI/Swagger standards. Check schema structure, 
 
 Compare different versions of an API to identify changes, breaking updates, and migration requirements. Essential for API governance and version management.
 
+### Manage API Specifications (Spec Hub)
+**File**: `workflows/design/manage_specs.md`
+
+Create and manage API specifications using Postman's Spec Hub. This is the modern, recommended approach for managing API definitions.
+
+🆕 **New Features**:
+- Create specifications directly (OpenAPI 3.0, AsyncAPI 2.0)
+- Single-file and multi-file specification support
+- Generate collections automatically from specifications
+- Generate specifications from existing collections
+- YAML and JSON format support
+- Replaces the deprecated `create_api()` workflow
+
 ### Manage Collections
 **File**: `workflows/build/manage_collections.md`
 
@@ -262,6 +283,7 @@ postman-skill/
 │   │   ├── list_collections.md   # Discovery workflow
 │   │   └── run_collection.md     # Test execution workflow
 │   ├── design/
+│   │   ├── manage_specs.md       # 🆕 Spec Hub management workflow (NEW!)
 │   │   ├── validate_schema.md    # Schema validation workflow
 │   │   └── version_comparison.md # API version comparison workflow
 │   ├── build/
@@ -277,12 +299,14 @@ postman-skill/
 │       └── view_documentation.md # Documentation access workflow
 ├── scripts/
 │   ├── config.py                 # Configuration management
-│   ├── postman_client.py         # API client with CRUD operations (now uses curl)
+│   ├── postman_client.py         # API client with CRUD + Spec Hub operations (now uses curl)
 │   ├── validate_setup.py         # 🆕 Comprehensive setup validation & diagnostics
 │   ├── list_collections.py       # Collection discovery script (enhanced with context)
 │   ├── list_workspaces.py        # 🆕 Workspace discovery and navigation
 │   ├── manage_collections.py     # Collection management CLI
 │   ├── manage_environments.py    # Environment management CLI
+│   ├── manage_pet_store_spec.py  # 🆕 Spec Hub example script (NEW!)
+│   ├── manage_pet_store_api.py   # Legacy API example (deprecated)
 │   ├── run_collection.py         # Newman test execution wrapper
 │   └── manage_monitors.py        # Monitor management CLI
 ├── utils/
@@ -326,6 +350,57 @@ env = client.create_environment(
         "bearer_token": "bearer-xyz-456"  # Auto-detected as secret! 🔐
     }
 )
+```
+
+### Spec Hub Workflows (NEW!)
+
+**Create an API specification:**
+```python
+import json
+from scripts.postman_client import PostmanClient
+
+client = PostmanClient()
+
+# Create OpenAPI 3.0 spec
+openapi_spec = {
+    "openapi": "3.0.0",
+    "info": {"title": "My API", "version": "1.0.0"},
+    "paths": {"/users": {"get": {"responses": {"200": {"description": "Success"}}}}}
+}
+
+spec = client.create_spec({
+    "name": "My API",
+    "description": "A sample API",
+    "files": [{
+        "path": "openapi.json",
+        "content": json.dumps(openapi_spec),
+        "root": True
+    }]
+})
+print(f"Created spec: {spec['id']}")
+```
+
+**Generate collection from spec:**
+```python
+# Automatically create a collection from your spec
+result = client.generate_collection_from_spec(
+    spec_id,
+    collection_name="My API Collection"
+)
+```
+
+**Generate spec from collection:**
+```python
+# Create a spec from an existing collection
+result = client.generate_spec_from_collection(
+    collection_id="collection-12345",
+    spec_name="Generated API Spec"
+)
+```
+
+**Run the complete example:**
+```bash
+python scripts/manage_pet_store_spec.py
 ```
 
 ### Version Control Workflows (v1.1 - v10+ Required)

@@ -151,16 +151,31 @@ class PostmanClient:
         def execute_curl():
             """Execute curl command and return parsed response."""
             try:
+                # Use environment as-is - the proxy is configured correctly
+                # and removing it breaks DNS resolution
+                env = os.environ.copy()
+
+                # Debug: print curl command if POSTMAN_DEBUG is set
+                if os.getenv('POSTMAN_DEBUG'):
+                    print(f"DEBUG: Executing curl command: {' '.join(curl_cmd[:10])}... {url}", file=sys.stderr)
+                    print(f"DEBUG: Using proxy: {env.get('https_proxy', 'none')}", file=sys.stderr)
+
                 result = subprocess.run(
                     curl_cmd,
                     capture_output=True,
                     text=True,
-                    timeout=timeout + 5  # Add buffer to subprocess timeout
+                    timeout=timeout + 5,  # Add buffer to subprocess timeout
+                    env=env  # Use environment with proxy intact
                 )
 
                 if result.returncode != 0:
-                    error_msg = result.stderr or result.stdout or "Curl command failed"
-                    raise NetworkError(message=f"Curl failed: {error_msg}")
+                    stderr = result.stderr.strip() if result.stderr else ""
+                    stdout = result.stdout.strip() if result.stdout else ""
+                    error_msg = stderr or stdout or "Unknown curl error"
+                    raise NetworkError(
+                        message=f"Curl failed (exit code {result.returncode}): {error_msg}\n"
+                                f"Command: {' '.join(curl_cmd[:4])}... {url}"
+                    )
 
                 # Parse response (headers + body)
                 output = result.stdout
@@ -177,9 +192,26 @@ class PostmanClient:
 
                 headers_text, body = parts[0], parts[1]
 
+                # Check if body contains another HTTP response (common with proxies/HTTP2)
+                if body.strip().startswith('HTTP/'):
+                    # The body is actually another HTTP response - parse it instead
+                    nested_parts = body.split('\n\n', 1)
+                    if len(nested_parts) >= 2:
+                        headers_text = nested_parts[0]
+                        body = nested_parts[1] if len(nested_parts) > 1 else ""
+
+                # Debug: print response details if POSTMAN_DEBUG is set
+                if os.getenv('POSTMAN_DEBUG'):
+                    print(f"DEBUG: Headers (first 200 chars): {headers_text[:200]}", file=sys.stderr)
+                    print(f"DEBUG: Response body length: {len(body)}", file=sys.stderr)
+                    print(f"DEBUG: Response body (first 200 chars): {body[:200]}", file=sys.stderr)
+
                 # Extract status code from headers
                 status_line = headers_text.split('\n')[0]
-                status_code = int(status_line.split()[1])
+                status_parts = status_line.split()
+                if len(status_parts) < 2:
+                    raise NetworkError(message=f"Invalid HTTP status line: {status_line}")
+                status_code = int(status_parts[1])
 
                 # Parse response headers
                 response_headers = {}
@@ -203,7 +235,19 @@ class PostmanClient:
             except subprocess.TimeoutExpired as e:
                 raise TimeoutError(timeout_seconds=timeout) from e
             except json.JSONDecodeError as e:
-                raise NetworkError(message=f"Failed to parse JSON response: {str(e)}") from e
+                # Better error for empty/invalid responses
+                error_msg = (
+                    "Received invalid JSON response from Postman API.\n"
+                    "This usually means:\n"
+                    "  • The endpoint returned no data or empty response\n"
+                    "  • Network connectivity issue\n"
+                    "  • The API endpoint might not exist\n"
+                    f"\nTried to access: {url}\n"
+                    "\n🔧 Troubleshooting:\n"
+                    "  • Run: python scripts/validate_setup.py\n"
+                    "  • Check Postman API status: https://status.postman.com/"
+                )
+                raise NetworkError(message=error_msg) from e
             except Exception as e:
                 if isinstance(e, (NetworkError, TimeoutError)):
                     raise
@@ -251,7 +295,16 @@ class PostmanClient:
             endpoint = "/collections"
 
         response = self._make_request('GET', endpoint)
-        return response.get('collections', [])
+        collections = response.get('collections', [])
+
+        # Provide helpful context for empty results (only in debug mode)
+        if len(collections) == 0 and os.getenv('POSTMAN_DEBUG'):
+            if workspace_id:
+                import sys
+                print(f"ℹ️  No collections found in workspace {workspace_id}", file=sys.stderr)
+                print("   💡 Run 'python scripts/list_workspaces.py' to see other workspaces", file=sys.stderr)
+
+        return collections
 
     def get_collection(self, collection_uid):
         """

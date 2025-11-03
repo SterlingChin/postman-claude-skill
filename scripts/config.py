@@ -72,7 +72,7 @@ class PostmanConfig:
         self.workspace_id = os.getenv("POSTMAN_WORKSPACE_ID")
         self.rate_limit_delay = int(os.getenv("POSTMAN_RATE_LIMIT_DELAY", "60"))
         self.max_retries = int(os.getenv("POSTMAN_MAX_RETRIES", "3"))
-        self.timeout = int(os.getenv("POSTMAN_TIMEOUT", "30"))
+        self.timeout = int(os.getenv("POSTMAN_TIMEOUT", "10"))
 
         # Proxy settings
         # By default, bypass all proxies to avoid "403 Forbidden" proxy errors
